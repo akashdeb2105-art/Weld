@@ -44,6 +44,9 @@ Thumbs.db
 # Logs
 *.log
 
+# TS incremental build info
+*.tsbuildinfo
+
 # Local tooling
 .turbo/
 .vercel/

@@ -1,0 +1,14 @@
+{
+  "name": "@weld/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WELD API — Python/FastAPI. This package.json exists so npm workspace scripts can drive Python commands uniformly.",
+  "scripts": {
+    "dev": "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "serve": "uvicorn app.main:app --host 0.0.0.0 --port 8000",
+    "e2e:serve": "uvicorn app.main:app --host 127.0.0.1 --port 8871",
+    "migrate": "alembic upgrade head",
+    "test": "pytest",
+    "typecheck": "echo \"Python: no static typecheck step in M0\""
+  }
+}

@@ -1,0 +1,13 @@
+node_modules
+dist
+build
+.next
+out
+coverage
+test-results
+playwright-report
+.venv
+*.lock
+package-lock.json
+**/alembic/versions/*.py
+CHANGELOG.md

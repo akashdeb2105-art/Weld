@@ -1,0 +1,36 @@
+{
+  "name": "weld",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WELD — AI Game Studio. Describe it. Build it. Break it. Ship it.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently --names api,web --prefix-colors magenta,cyan \"npm run dev -w @weld/api\" \"npm run dev -w @weld/web\"",
+    "dev:web": "npm run dev -w @weld/web",
+    "dev:api": "npm run dev -w @weld/api",
+    "build": "npm run build -w @weld/gamebible --if-present && npm run build -w @weld/sample-game && npm run build -w @weld/web",
+    "test": "npm test -w @weld/gamebible && npm test -w @weld/sample-game && npm test -w @weld/web",
+    "typecheck": "npm run typecheck -w @weld/gamebible && npm run typecheck -w @weld/sample-game && npm run typecheck -w @weld/web",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "e2e": "playwright test",
+    "sample:build": "npm run build -w @weld/sample-game"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.50.1",
+    "concurrently": "^9.1.2",
+    "eslint": "^10.10.0",
+    "globals": "^17.12.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.69.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

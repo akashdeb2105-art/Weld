@@ -1,0 +1,126 @@
+@import 'tailwindcss';
+
+/* ────────────────────────────────────────────────────────────────
+   WELD Design System — "Blueprint & Spark"
+   Ink/steel surfaces, blueprint-grid lines, spark-orange playhead.
+   No AI-purple, no glassmorphism, no orbs, no stock gradients.
+   ──────────────────────────────────────────────────────────────── */
+
+@theme {
+  /* Type */
+  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* Surface */
+  --color-ink-950: #0b0d12;
+  --color-ink-900: #12151d;
+  --color-ink-800: #1b2130;
+  --color-ink-700: #242b3d;
+  --color-line: #2a334a;
+  --color-line-strong: #3a4560;
+
+  /* Text */
+  --color-paper: #f2f0ea;
+  --color-steel: #aab3c5;
+  --color-dim: #6b7488;
+
+  /* Accents */
+  --color-spark: #ff5c1a;
+  --color-spark-soft: #ff8a50;
+  --color-spark-dim: #b53f0e;
+  --color-weld-blue: #8fd3ff;
+  --color-weld-blue-dim: #4a7ea8;
+
+  /* Semantic state (blueprint §82) */
+  --color-state-building: #8fd3ff;
+  --color-state-running: #8fd3ff;
+  --color-state-testing: #ffc857;
+  --color-state-warning: #ffb020;
+  --color-state-failed: #ff4d4d;
+  --color-state-fixing: #ff5c1a;
+  --color-state-verified: #41d98d;
+  --color-state-published: #41d98d;
+
+  /* Motion tokens */
+  --ease-weld-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-quick: 180ms;
+  --duration-scene: 600ms;
+}
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+body {
+  background: var(--color-ink-950);
+  color: var(--color-paper);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Blueprint grid backdrop — subtle, structural, not decorative noise. */
+.blueprint-grid {
+  background-image:
+    linear-gradient(to right, rgb(42 51 74 / 0.35) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(42 51 74 / 0.35) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.blueprint-grid-fine {
+  background-image:
+    linear-gradient(to right, rgb(42 51 74 / 0.22) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(42 51 74 / 0.22) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+
+/* Focus — always visible, high contrast, uses the spark accent. */
+:focus-visible {
+  outline: 2px solid var(--color-spark);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* The playhead: thin continuous line device (blueprint §33). */
+.playhead-track {
+  position: relative;
+  height: 2px;
+  background: var(--color-line);
+  overflow: visible;
+}
+.playhead-track::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--color-spark), var(--color-spark-soft));
+  transform-origin: left center;
+  transform: scaleX(var(--playhead-progress, 0));
+  transition: transform var(--duration-scene) var(--ease-weld-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playhead-track::after {
+    transition: none;
+  }
+}
+
+/* Selection */
+::selection {
+  background: var(--color-spark);
+  color: var(--color-ink-950);
+}

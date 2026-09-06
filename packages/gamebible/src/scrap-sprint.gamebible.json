@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "game": {
+    "title": "Scrap Sprint",
+    "slug": "scrap-sprint",
+    "genre": "top_down_arcade",
+    "target": "browser_desktop",
+    "camera": "top_down",
+    "one_liner": "A weld-bot courier hauls glowing scrap to the furnace before the shift timer burns out."
+  },
+  "player": {
+    "role": "weld-bot courier",
+    "movement": "keyboard_8_direction",
+    "health": 3
+  },
+  "core_loop": [
+    "spot_scrap",
+    "collect_scrap",
+    "avoid_spark_pits",
+    "deliver_to_furnace",
+    "earn_score",
+    "beat_the_timer"
+  ],
+  "win_condition": {
+    "type": "deliver_count",
+    "target": 5,
+    "description": "Deliver 5 scrap units to the furnace before the 90-second shift timer runs out."
+  },
+  "lose_conditions": ["timer_zero", "health_zero"],
+  "controls": {
+    "up": ["W", "ArrowUp"],
+    "down": ["S", "ArrowDown"],
+    "left": ["A", "ArrowLeft"],
+    "right": ["D", "ArrowRight"],
+    "interact": ["E", "Space"],
+    "pause": ["Escape", "P"],
+    "restart": ["R"]
+  },
+  "systems": [
+    "movement",
+    "collisions",
+    "hazards",
+    "scoring",
+    "timer",
+    "pickups",
+    "delivery",
+    "restart",
+    "pause"
+  ],
+  "visual_direction": {
+    "theme": "rust_and_blueprint_foundry",
+    "palette": ["#0B0D12", "#1B2130", "#FF5C1A", "#8FD3FF", "#F2F0EA"],
+    "typography": "Space Grotesk / IBM Plex Mono",
+    "notes": "Blueprint-grid foundry floor, spark-orange furnace, hard industrial shapes. No neon gradients."
+  },
+  "audio": {
+    "enabled": false,
+    "style": "none (M0 — no audio assets yet)"
+  },
+  "quality_requirements": {
+    "start_successfully": true,
+    "restartable": true,
+    "win_reachable": true,
+    "lose_reachable": true,
+    "zero_console_errors": true
+  },
+  "level": {
+    "name": "Foundry Floor 01",
+    "width": 960,
+    "height": 540,
+    "timer_seconds": 90,
+    "player_spawn": { "x": 480, "y": 300 },
+    "player_speed": 220,
+    "delivery_zone": { "x": 408, "y": 24, "width": 144, "height": 60, "label": "FURNACE" },
+    "pickups": [
+      { "id": "scrap-01", "kind": "scrap", "x": 132, "y": 140 },
+      { "id": "scrap-02", "kind": "scrap", "x": 828, "y": 140 },
+      { "id": "scrap-03", "kind": "scrap", "x": 132, "y": 430 },
+      { "id": "scrap-04", "kind": "scrap", "x": 828, "y": 430 },
+      { "id": "scrap-05", "kind": "scrap", "x": 480, "y": 160 },
+      { "id": "scrap-06", "kind": "scrap", "x": 220, "y": 300 },
+      { "id": "scrap-07", "kind": "scrap", "x": 740, "y": 300 },
+      { "id": "scrap-08", "kind": "scrap", "x": 480, "y": 470 }
+    ],
+    "hazards": [
+      { "id": "pit-01", "kind": "spark_pit", "x": 300, "y": 215, "radius": 30 },
+      { "id": "pit-02", "kind": "spark_pit", "x": 660, "y": 215, "radius": 30 },
+      { "id": "pit-03", "kind": "spark_pit", "x": 480, "y": 395, "radius": 30 }
+    ]
+  },
+  "provenance": {
+    "origin": "deterministic_sample",
+    "notes": "Hand-authored reference project for M0. Used to demonstrate the product loop honestly before the AI engine lands in M1+."
+  }
+}

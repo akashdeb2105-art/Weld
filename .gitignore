@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+.pnp.*
+
+# Builds
+dist/
+build/
+.next/
+out/
+apps/web/.next/
+apps/web/out/
+
+# Test artifacts
+coverage/
+test-results/
+playwright-report/
+playwright/.cache/
+blob-report/
+apps/web/test-results/
+*.lcov
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Environment / secrets — never commit real env files
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+
+# Logs
+*.log
+
+# Local tooling
+.turbo/
+.vercel/
+.netlify/

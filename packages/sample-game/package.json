@@ -1,0 +1,23 @@
+{
+  "name": "@weld/sample-game",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Scrap Sprint — the deterministic reference game for WELD M0.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@weld/gamebible": "*",
+    "phaser": "^3.87.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0",
+    "vitest": "^3.0.5"
+  }
+}

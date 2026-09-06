@@ -4,7 +4,8 @@
   "private": true,
   "description": "WELD — AI Game Studio. Describe it. Build it. Break it. Ship it.",
   "workspaces": [
-    "apps/*",
+    "frontend",
+    "backend",
     "packages/*"
   ],
   "scripts": {

@@ -18,7 +18,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
+      dockerfile: backend/Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-weld}:${POSTGRES_PASSWORD:-weld-dev-only}@postgres:5432/${POSTGRES_DB:-weld}
       CORS_ORIGINS: http://localhost:3000
@@ -32,7 +32,7 @@ services:
   web:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
+      dockerfile: frontend/Dockerfile
       args:
         WELD_API_URL: http://api:8000
     environment:

@@ -37,7 +37,7 @@ export default defineConfig({
     },
     {
       command: `npm run build && npm run start -- -p ${WEB_PORT}`,
-      cwd: 'apps/web',
+      cwd: 'frontend',
       port: WEB_PORT,
       reuseExistingServer: !process.env.CI,
       timeout: 300_000,

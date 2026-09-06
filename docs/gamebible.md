@@ -9,7 +9,7 @@ UI. It is versioned and strict.
 
 - TypeScript source of truth: `packages/gamebible/src/index.ts` (Zod).
 - Canonical fixture: `packages/gamebible/src/scrap-sprint.gamebible.json`.
-- Python wire-mirror: `apps/api/app/gamebible.py` (Pydantic) â€” validates the
+- Python wire-mirror: `backend/app/gamebible.py` (Pydantic) â€” validates the
   fixture at API startup and before seeding.
 
 ## Shape (v1)

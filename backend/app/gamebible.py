@@ -13,9 +13,9 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
-# gamebible.py -> app -> api -> apps -> <repo root>  (parents[3])
+# gamebible.py -> app -> backend -> <repo root>  (parents[2])
 FIXTURE_PATH = (
-    Path(__file__).resolve().parents[3]
+    Path(__file__).resolve().parents[2]
     / "packages"
     / "gamebible"
     / "src"

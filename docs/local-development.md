@@ -10,9 +10,9 @@
 
 ```bash
 npm install
-python -m venv apps/api/.venv
-# Windows:  apps/api/.venv/Scripts/pip install -r apps/api/requirements-dev.txt
-# mac/linux: apps/api/.venv/bin/pip install -r apps/api/requirements-dev.txt
+python -m venv backend/.venv
+# Windows:  backend/.venv/Scripts/pip install -r backend/requirements-dev.txt
+# mac/linux: backend/.venv/bin/pip install -r backend/requirements-dev.txt
 cp .env.example .env
 ```
 
@@ -35,7 +35,7 @@ docker compose up postgres
 **API** (with auto-reload; Alembic ensures schema, startup seeds the sample):
 
 ```bash
-cd apps/api
+cd backend
 ../.venv/Scripts/alembic upgrade head        # Unix: ../.venv/bin/alembic
 ../.venv/Scripts/uvicorn app.main:app --reload
 ```
@@ -51,7 +51,7 @@ npm run dev -w @weld/web             # http://localhost:3000
 
 ```bash
 npm test                            # gamebible + sample-game + web (Vitest)
-cd apps/api && python -m pytest     # API (hermetic SQLite + migrations)
+cd backend && python -m pytest     # API (hermetic SQLite + migrations)
 npm run e2e                         # Playwright smoke (boots API + web)
 npm run lint && npm run typecheck
 ```

@@ -1,5 +1,5 @@
 /**
- * Copies the built deterministic sample game into apps/web/public/sample-game
+ * Copies the built deterministic sample game into frontend/public/sample-game
  * so the Next server can serve it through the sandboxed iframe route.
  * Safe to run repeatedly; no-op if the game hasn't been built yet (warns).
  */

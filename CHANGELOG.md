@@ -24,7 +24,7 @@ states, zero faked AI.
   tests proving the invariants (timer never increases, lives never negative,
   score never decreases, restart resets state). Read-only `window.__WELD__`
   test bridge; procedural visuals (no external assets).
-- **API** (`apps/api`) — FastAPI + Pydantic v2: `GET /health`,
+- **API** (`backend`) — FastAPI + Pydantic v2: `GET /health`,
   `GET /api/v1/projects`, `/projects/{slug}`, `/projects/{slug}/gamebible`,
   `/projects/{slug}/jobs`. SQLAlchemy models (projects, game_bibles, jobs),
   Alembic migration `0001`, idempotent deterministic seed. Hermetic pytest

@@ -19,7 +19,7 @@ See [README.md](README.md) and [docs/local-development.md](docs/local-developmen
 
 ```bash
 npm install
-pip install -r apps/api/requirements-dev.txt
+pip install -r backend/requirements-dev.txt
 docker compose up postgres
 ```
 
@@ -31,7 +31,7 @@ All must pass locally (and in CI):
 npm run lint
 npm run typecheck
 npm test
-cd apps/api && python -m pytest
+cd backend && python -m pytest
 npm run build
 npm run e2e
 ```

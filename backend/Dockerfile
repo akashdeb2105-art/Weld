@@ -7,7 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /srv
 
 # Install API deps (no dev extras in the image).
-COPY apps/api/pyproject.toml ./apps/api/pyproject.toml
+COPY backend/pyproject.toml ./backend/pyproject.toml
 RUN pip install --no-cache-dir \
     "fastapi>=0.115" \
     "uvicorn[standard]>=0.34" \
@@ -18,10 +18,10 @@ RUN pip install --no-cache-dir \
     "psycopg[binary]>=3.2"
 
 # App source + migrations + the shared GameBible fixture the seed reads.
-COPY apps/api ./apps/api
+COPY backend ./backend
 COPY packages/gamebible/src/scrap-sprint.gamebible.json ./packages/gamebible/src/scrap-sprint.gamebible.json
 
-WORKDIR /srv/apps/api
+WORKDIR /srv/backend
 
 EXPOSE 8000
 

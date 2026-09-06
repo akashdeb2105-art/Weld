@@ -1,5 +1,5 @@
 // Root ESLint flat config.
-// Workspace apps (apps/web) provide their own framework-aware configs; this
+// Workspace apps (frontend) provide their own framework-aware configs; this
 // config lints everything else and delegates to framework configs where present.
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
@@ -16,8 +16,8 @@ export default tseslint.config(
       '**/test-results/**',
       '**/playwright-report/**',
       '**/*.config.{js,mjs,cjs,ts}',
-      'apps/web/**', // linted by `npm run lint -w @weld/web` (next lint config)
-      'apps/api/**',
+      'frontend/**', // linted by `npm run lint -w @weld/web` (next lint config)
+      'backend/**',
     ],
   },
   js.configs.recommended,

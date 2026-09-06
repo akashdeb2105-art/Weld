@@ -26,7 +26,7 @@ deterministic offline composer instead of pretending to be a model.
 
 | M1 piece | What it is |
 | -------- | ---------- |
-| **Game Director** | `apps/api/app/director.py` — prompt → schema-validated GameBible. LLM-backed (OpenAI-compatible) with an honest offline fallback. |
+| **Game Director** | `backend/app/director.py` — prompt → schema-validated GameBible. LLM-backed (OpenAI-compatible) with an honest offline fallback. |
 | **Create project** | `POST /api/v1/projects` + a real "New game" prompt form on `/app` (server action; browser never sees keys). |
 | **Provenance** | Generated projects labeled `ai_generated` (LLM) or `offline_draft`; crew panel marks Director/Designer **live** for them. |
 
@@ -72,14 +72,14 @@ Prereqs: Node 20+, Python 3.12+, Postgres (or use compose just for the DB).
 ```bash
 # 0. one-time
 npm install
-python -m venv apps/api/.venv && apps/api/.venv/Scripts/pip install -r apps/api/requirements-dev.txt  # (Unix: apps/api/.venv/bin/pip)
+python -m venv backend/.venv && backend/.venv/Scripts/pip install -r backend/requirements-dev.txt  # (Unix: backend/.venv/bin/pip)
 cp .env.example .env
 
 # 1. database
 docker compose up postgres
 
 # 2. api (terminal A)
-cd apps/api && ../.venv/Scripts/alembic upgrade head && ../.venv/Scripts/uvicorn app.main:app --reload
+cd backend && ../.venv/Scripts/alembic upgrade head && ../.venv/Scripts/uvicorn app.main:app --reload
 
 # 3. web (terminal B)
 npm run build -w @weld/sample-game   # build the sample game once
@@ -92,7 +92,7 @@ npm run dev -w @weld/web             # http://localhost:3000
 npm run lint          # ESLint
 npm run typecheck     # TS strict, all workspaces
 npm test              # Vitest: schema + game logic + web
-cd apps/api && python -m pytest   # API: health, projects, migrations
+cd backend && python -m pytest   # API: health, projects, migrations
 npm run build         # production builds
 npm run e2e           # Playwright smoke (boots API+web, plays the game)
 ```
@@ -100,16 +100,19 @@ npm run e2e           # Playwright smoke (boots API+web, plays the game)
 ## Repository layout
 
 ```text
-apps/
-  web/            Next.js — public site + Studio
-  api/            FastAPI — projects, GameBibles, jobs
+frontend/         Next.js — public site + Studio (everything the user sees)
+backend/          FastAPI — projects, GameBibles, jobs, the Game Director
 packages/
-  gamebible/      GameBible schema + canonical fixture
+  gamebible/      GameBible schema + canonical fixture (shared contract)
   sample-game/    Scrap Sprint — deterministic Phaser 3 game
 docs/             architecture, local dev, gamebible spec
 e2e/              Playwright smoke tests
 docker-compose.yml
 ```
+
+The two runnable services live at the top level by name: `frontend/` is the
+Next.js app, `backend/` is the Python API. Shared libraries stay under
+`packages/` so the front and back ends never reach into each other.
 
 ## The product loop
 

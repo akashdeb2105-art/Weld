@@ -7,14 +7,14 @@ Nothing distributed until measurements justify it.
 
 ```text
                 â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-  Browser  â”€â”€â”€â–º â”‚  apps/web  (Next.js)                       â”‚
+  Browser  â”€â”€â”€â–º â”‚  frontend  (Next.js)                       â”‚
                 â”‚   /          public landing (real embed)   â”‚
                 â”‚   /app       projects                      â”‚
                 â”‚   /app/studio/[slug]  Studio               â”‚
                 â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
                                 â”‚ server-side fetch (no client-exposed internal URLs)
                 â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-                â”‚  apps/api  (FastAPI)                       â”‚
+                â”‚  backend  (FastAPI)                       â”‚
                 â”‚   /health                                  â”‚
                 â”‚   /api/v1/projects[/:slug[/gamebible|jobs]]â”‚
                 â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
@@ -35,7 +35,7 @@ Nothing distributed until measurements justify it.
 | artifacts  | fixture + DB JSON | Structured, inspectable, resumable |
 | game       | `packages/sample-game` | Ordinary editable source, engine-agnostic logic core |
 | runtime    | web sandboxed iframe | Untrusted code never runs in the API process |
-| api        | `apps/api` | Thin HTTP over Pydantic schemas |
+| api        | `backend` | Thin HTTP over Pydantic schemas |
 
 ## The GameBible as the spine
 
@@ -63,7 +63,7 @@ game's postMessage bridge. Event streaming lands with the engine (M5).
 
 ## The Game Director (M1)
 
-`apps/api/app/director.py` turns a plain-language prompt into a **validated
+`backend/app/director.py` turns a plain-language prompt into a **validated
 GameBible**. It is the first AI role, and it is honest about how it works:
 
 - **LLM mode** — when `LLM_API_KEY` is set, an OpenAI-compatible chat call

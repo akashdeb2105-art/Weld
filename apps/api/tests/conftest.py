@@ -12,6 +12,17 @@ from sqlalchemy.orm import sessionmaker
 _tmp = tempfile.mkdtemp(prefix="weld-test-")
 os.environ["DATABASE_URL"] = f"sqlite+pysqlite:///{_tmp}/test.db"
 os.environ["ENVIRONMENT"] = "test"
+# Tests must be hermetic and offline: never read a developer's real .env keys.
+# Point settings at a nonexistent env file AND clear any inherited LLM keys so
+# the Director always uses its deterministic offline composer in tests.
+os.environ["WELD_ENV_FILE"] = os.path.join(_tmp, "no-such.env")
+for _key in (
+    "LLM_API_KEY",
+    "FIREWORKS_API_KEY",
+    "GEMINI_API_KEY",
+    "OPENROUTER_API_KEY",
+):
+    os.environ.pop(_key, None)
 
 from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402

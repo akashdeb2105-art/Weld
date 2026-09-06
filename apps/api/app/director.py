@@ -308,22 +308,81 @@ def compose_offline(prompt: str) -> DirectorResult:
 # LLM composer (OpenAI-compatible)
 # ---------------------------------------------------------------------------
 
+_JSON_SHAPE = """{
+  "schemaVersion": 1,
+  "game": {"title": "...", "slug": "kebab-case", "genre": "top_down_arcade",
+    "target": "browser_desktop", "camera": "top_down", "one_liner": "..."},
+  "player": {"role": "...", "movement": "keyboard_8_direction", "health": 3},
+  "core_loop": ["spot_x", "collect_x", "avoid_y", "deliver_to_goal", "earn_score", "beat_the_timer"],
+  "win_condition": {"type": "deliver_count", "target": 5, "description": "..."},
+  "lose_conditions": ["timer_zero", "health_zero"],
+  "controls": {"up": ["W", "ArrowUp"], "down": ["S", "ArrowDown"],
+    "left": ["A", "ArrowLeft"], "right": ["D", "ArrowRight"],
+    "interact": ["E", "Space"], "pause": ["Escape", "P"], "restart": ["R"]},
+  "systems": ["movement", "collisions", "hazards", "scoring", "timer",
+    "pickups", "delivery", "restart", "pause"],
+  "visual_direction": {"theme": "...", "palette": ["#0B0D12", "#1B2130", "#FF5C1A", "#8FD3FF", "#F2F0EA"], "notes": "..."},
+  "audio": {"enabled": false, "style": "none"},
+  "quality_requirements": {"start_successfully": true, "restartable": true,
+    "win_reachable": true, "lose_reachable": true, "zero_console_errors": true},
+  "level": {"name": "...", "width": 960, "height": 540, "timer_seconds": 90,
+    "player_spawn": {"x": 480, "y": 300}, "player_speed": 220,
+    "delivery_zone": {"x": 408, "y": 24, "width": 144, "height": 60, "label": "GOAL"},
+    "pickups": [{"id": "scrap-01", "kind": "scrap", "x": 132, "y": 140}],
+    "hazards": [{"id": "pit-01", "kind": "spark_pit", "x": 300, "y": 215, "radius": 30}]},
+  "provenance": {"origin": "ai_generated", "notes": "..."}
+}"""
+
 _SYSTEM_PROMPT = (
     "You are the WELD Game Director. Turn the user's game idea into a single "
     "JSON object conforming to the GameBible v1 schema. Respond with ONLY the "
-    "JSON object, no markdown, no prose. Constraints: genre must be one of "
-    f"{sorted(SUPPORTED_GENRES)}; schemaVersion must be 1; game.target must be "
-    "'browser_desktop'; game.slug must be kebab-case; quality_requirements "
-    "fields must all be true; use the collect/deliver/dodge verbs in core_loop. "
-    "Fill the 'level' with concrete numeric coordinates, a delivery_zone, at "
-    "least 4 pickups (kind 'scrap') and at least 1 hazard (kind 'spark_pit'). "
-    "Set provenance.origin to 'ai_generated'."
+    "JSON object \u2014 no markdown, no code fences, no prose, no comments.\n\n"
+    "Hard rules:\n"
+    f"- genre must be exactly one of {sorted(SUPPORTED_GENRES)}.\n"
+    "- schemaVersion must be the integer 1; game.target must be 'browser_desktop'.\n"
+    "- game.camera must be 'top_down' (or 'side_view' for a platformer).\n"
+    "- Every pickup needs a unique string 'id', kind 'scrap', and integer x,y.\n"
+    "- Every hazard needs a unique string 'id', kind 'spark_pit', integer x,y, and a 'radius' number.\n"
+    "- Provide at least 5 pickups and at least 2 hazards.\n"
+    "- win_condition must be an OBJECT with keys type, target, description (never a string).\n"
+    "- lose_conditions must be an array of strings; controls values are arrays of key strings.\n"
+    "- quality_requirements fields must all be boolean true.\n"
+    "- Derive title, collectible and hazard nouns from the user's prompt; keep coordinates within width/height.\n\n"
+    "Return JSON in EXACTLY this shape (fill in real values):\n"
+    f"{_JSON_SHAPE}"
 )
 
 
-async def _compose_llm(prompt: str) -> DirectorResult:
+class _InvalidModelOutput(Exception):
+    """The model returned JSON that does not satisfy the GameBible schema.
+
+    Retryable — we try the next provider/model rather than failing the user.
+    """
+
+
+def _validate_doc(raw: dict, source: str) -> dict:
+    """Validate a model-produced document against the real GameBible contract.
+
+    Never trust the model blindly. A structural mismatch is retryable (try the
+    next provider); an unsupported genre is a genuine user-facing error.
+    """
+    try:
+        doc = GameBibleDoc.model_validate(raw).model_dump()
+    except Exception as exc:
+        raise _InvalidModelOutput(f"{source} produced an invalid Game Bible: {exc}") from exc
+    if doc["game"]["genre"] not in SUPPORTED_GENRES:
+        raise DirectorError(
+            f"The Director proposed an unsupported genre '{doc['game']['genre']}'. "
+            f"M1 supports: {', '.join(sorted(SUPPORTED_GENRES))}."
+        )
+    doc.setdefault("provenance", {})["origin"] = "ai_generated"
+    return doc
+
+
+async def _call_openai_compatible(prompt: str, *, api_key: str, base_url: str, model: str) -> dict:
+    """Call an OpenAI-compatible chat endpoint (Fireworks, OpenRouter, custom)."""
     payload = {
-        "model": settings.llm_model,
+        "model": model,
         "messages": [
             {"role": "system", "content": _SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
@@ -331,51 +390,103 @@ async def _compose_llm(prompt: str) -> DirectorResult:
         "temperature": 0.7,
         "response_format": {"type": "json_object"},
     }
-    headers = {"Authorization": f"Bearer {settings.llm_api_key}"}
-    url = f"{settings.llm_base_url.rstrip('/')}/chat/completions"
-    try:
-        async with httpx.AsyncClient(timeout=settings.director_timeout_seconds) as client:
-            resp = await client.post(url, json=payload, headers=headers)
-    except httpx.HTTPError as exc:  # network/timeout
-        raise DirectorUnavailableError(f"LLM request failed: {exc}") from exc
-
+    headers = {"Authorization": f"Bearer {api_key}"}
+    url = f"{base_url.rstrip('/')}/chat/completions"
+    async with httpx.AsyncClient(timeout=settings.director_timeout_seconds) as client:
+        resp = await client.post(url, json=payload, headers=headers)
     if resp.status_code != 200:
-        raise DirectorUnavailableError(
-            f"LLM provider returned {resp.status_code}: {resp.text[:200]}"
-        )
-
+        raise DirectorUnavailableError(f"{model} returned {resp.status_code}: {resp.text[:200]}")
     try:
         content = resp.json()["choices"][0]["message"]["content"]
-        raw = json.loads(content)
+        return json.loads(content)
     except (KeyError, IndexError, json.JSONDecodeError, ValueError) as exc:
-        raise DirectorUnavailableError("LLM returned malformed JSON.") from exc
+        raise DirectorUnavailableError(f"{model} returned malformed JSON.") from exc
 
-    # Validate against the real contract — never trust the model blindly.
+
+async def _call_gemini(prompt: str, *, api_key: str, model: str) -> dict:
+    """Call Google AI Studio's generateContent endpoint (different API shape)."""
+    url = (
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{model}:generateContent?key={api_key}"
+    )
+    payload = {
+        "systemInstruction": {"parts": [{"text": _SYSTEM_PROMPT}]},
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.7, "responseMimeType": "application/json"},
+    }
+    async with httpx.AsyncClient(timeout=settings.director_timeout_seconds) as client:
+        resp = await client.post(url, json=payload)
+    if resp.status_code != 200:
+        raise DirectorUnavailableError(f"{model} returned {resp.status_code}: {resp.text[:200]}")
     try:
-        doc = GameBibleDoc.model_validate(raw).model_dump()
-    except Exception as exc:
-        raise DirectorError(f"LLM produced an invalid Game Bible: {exc}") from exc
+        parts = resp.json()["candidates"][0]["content"]["parts"]
+        content = "".join(p.get("text", "") for p in parts)
+        return json.loads(content)
+    except (KeyError, IndexError, json.JSONDecodeError, ValueError) as exc:
+        raise DirectorUnavailableError(f"{model} returned malformed JSON.") from exc
 
-    if doc["game"]["genre"] not in SUPPORTED_GENRES:
-        raise DirectorError(
-            f"The Director proposed an unsupported genre '{doc['game']['genre']}'. "
-            f"M1 supports: {', '.join(sorted(SUPPORTED_GENRES))}."
-        )
 
-    doc.setdefault("provenance", {})["origin"] = "ai_generated"
-    return DirectorResult(doc=doc, mode="llm", notes=["llm_drafted", f"model:{settings.llm_model}"])
+async def _compose_llm(prompt: str) -> DirectorResult:
+    """Try each configured provider in order; use the first that yields a valid bible."""
+    providers = settings.director_providers()
+    if not providers:
+        return compose_offline(prompt)
+
+    # Build the ordered list of (provider, model) attempts. Fireworks also gets
+    # a second attempt on its fallback model (e.g. Kimi K3) before moving on.
+    attempts: list[tuple[dict, str]] = []
+    for provider in providers:
+        attempts.append((provider, provider["model"]))
+        if provider["name"] == "fireworks" and settings.fireworks_model_fallback.strip():
+            attempts.append((provider, settings.fireworks_model_fallback.strip()))
+
+    last_error: Exception | None = None
+    for provider, model in attempts:
+        try:
+            if provider["kind"] == "gemini":
+                raw = await _call_gemini(prompt, api_key=provider["api_key"], model=model)
+            else:
+                raw = await _call_openai_compatible(
+                    prompt,
+                    api_key=provider["api_key"],
+                    base_url=provider["base_url"],
+                    model=model,
+                )
+            doc = _validate_doc(raw, f"{provider['name']} model {model}")
+            return DirectorResult(
+                doc=doc,
+                mode="llm",
+                notes=["llm_drafted", f"provider:{provider['name']}", f"model:{model}"],
+            )
+        except _InvalidModelOutput as exc:
+            logger.warning("Director provider %s (%s) gave invalid spec: %s", provider["name"], model, str(exc)[:200])
+            last_error = exc
+            continue
+        except DirectorUnavailableError as exc:
+            logger.warning("Director provider %s (%s) failed: %s", provider["name"], model, exc)
+            last_error = exc
+            continue
+        except httpx.HTTPError as exc:
+            logger.warning("Director provider %s (%s) unreachable: %s", provider["name"], model, exc)
+            last_error = exc
+            continue
+
+    # Every provider/model was unreachable — degrade honestly to the offline
+    # composer rather than failing the request, and say why.
+    logger.warning("All Director providers unavailable (%s); using offline composer.", last_error)
+    offline = compose_offline(prompt)
+    offline.notes = ["llm_unavailable_fell_back"] + offline.notes
+    return offline
 
 
 async def generate_game_bible(prompt: str) -> DirectorResult:
     """Produce a validated GameBible for a prompt.
 
-    Uses the configured LLM when a key is present; otherwise falls back to the
-    deterministic offline composer so the feature always works and never fakes
-    output.
+    Uses the configured LLM providers when any key is present; otherwise falls
+    back to the deterministic offline composer so the feature always works and
+    never fakes output.
     """
     text = prompt.strip()
     if len(text) < 8:
         raise DirectorError("Describe your game in a sentence or two (at least 8 characters).")
-    if settings.llm_configured:
-        return await _compose_llm(text)
-    return compose_offline(text)
+    return await _compose_llm(text)

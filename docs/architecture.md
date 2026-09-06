@@ -61,6 +61,28 @@ There is deliberately **no SSE/event stream in M0** â€” there is no engine 
 stream from. The Studio's playhead tracks the *real* game status via the
 game's postMessage bridge. Event streaming lands with the engine (M5).
 
+## The Game Director (M1)
+
+`apps/api/app/director.py` turns a plain-language prompt into a **validated
+GameBible**. It is the first AI role, and it is honest about how it works:
+
+- **LLM mode** — when `LLM_API_KEY` is set, an OpenAI-compatible chat call
+  drafts the document. The output is *always* re-validated against the
+  GameBible contract before it is used, so a hallucinating model cannot emit
+  an invalid spec.
+- **Offline mode** — with no key, a deterministic interpreter composes a real,
+  playable spec from the prompt's actual signals (genre, collectible, hazard).
+  The result is labeled `offline_draft` / `template_composed` — never passed
+  off as LLM output. This keeps the feature working and fully testable with no
+  secrets and no network.
+
+M1 only supports the genres the deterministic runtime can execute
+(`top_down_arcade`, `platformer`, `dodge_survival`); anything else is rejected
+with a clear error instead of a broken game. Every Director run is recorded as
+a real `director_draft` job, so the Studio shows true provenance. The web app
+calls it via `POST /api/v1/projects` through a Next.js server action (the
+browser never sees internal URLs or keys).
+
 ## Deployment
 
 - **Frontend/public site:** Netlify (Next.js).
@@ -70,5 +92,5 @@ game's postMessage bridge. Event streaming lands with the engine (M5).
 
 ## Later milestones (not built yet)
 
-Director/Designer (M1), Architect/Builder (M2), Playtester (M3),
-Triage/Fixer/Regression (M4), live Studio + Publish (M5). See the blueprint.
+Architect/Builder (M2), Playtester (M3), Triage/Fixer/Regression (M4),
+live Studio + Publish (M5). See the blueprint.

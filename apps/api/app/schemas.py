@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class HealthResponse(BaseModel):
@@ -58,3 +58,18 @@ class GameBibleOut(BaseModel):
     project_slug: str
     schema_version: int
     data: dict
+
+
+class CreateProjectRequest(BaseModel):
+    """The Game Director's input (M1): a plain-language game idea."""
+
+    prompt: str = Field(min_length=8, max_length=2000)
+
+
+class CreateProjectResponse(BaseModel):
+    """The Director's draft: a persisted project plus how it was made."""
+
+    project: ProjectOut
+    game_bible: dict
+    mode: str  # "llm" | "offline"
+    notes: list[str]

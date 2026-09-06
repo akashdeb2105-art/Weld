@@ -9,39 +9,56 @@ import type { GameStateSnapshot } from '@/lib/types';
  * "Builder ●" dots, the crew is shown as a roster of roles with their real
  * milestone status. The only live telemetry is the actual game state.
  */
-const CREW: { role: string; lands: string; does: string }[] = [
-  { role: 'Director', lands: 'M1', does: 'Turns your prompt into structured intent' },
-  { role: 'Designer', lands: 'M1', does: 'Writes the Game Bible' },
-  { role: 'Architect', lands: 'M2', does: 'Chooses the build plan' },
-  { role: 'Builder', lands: 'M2', does: 'Writes the game source' },
-  { role: 'Playtester', lands: 'M3', does: 'Drives Chromium, tests win/lose/restart' },
-  { role: 'Triage', lands: 'M4', does: 'Turns failures into bug reports' },
-  { role: 'Fixer', lands: 'M4', does: 'Applies minimal targeted patches' },
-  { role: 'Visual QA', lands: 'M6', does: 'Checks screenshots for visual defects' },
-  { role: 'Release Judge', lands: 'M5', does: 'Runs the release gate' },
-];
+type CrewRole = { role: string; lands: string; does: string; live?: boolean };
 
-export function CrewPanel({ snap }: { snap: GameStateSnapshot | null }) {
+function crewFor(provenance: string | undefined): CrewRole[] {
+  // The Director + Designer go live (M1) only for projects they actually made.
+  const generated = provenance === 'ai_generated' || provenance === 'offline_draft';
+  return [
+    { role: 'Director', lands: 'M1', does: 'Turns your prompt into structured intent', live: generated },
+    { role: 'Designer', lands: 'M1', does: 'Writes the Game Bible', live: generated },
+    { role: 'Architect', lands: 'M2', does: 'Chooses the build plan' },
+    { role: 'Builder', lands: 'M2', does: 'Writes the game source' },
+    { role: 'Playtester', lands: 'M3', does: 'Drives Chromium, tests win/lose/restart' },
+    { role: 'Triage', lands: 'M4', does: 'Turns failures into bug reports' },
+    { role: 'Fixer', lands: 'M4', does: 'Applies minimal targeted patches' },
+    { role: 'Visual QA', lands: 'M6', does: 'Checks screenshots for visual defects' },
+    { role: 'Release Judge', lands: 'M5', does: 'Runs the release gate' },
+  ];
+}
+
+export function CrewPanel({
+  snap,
+  provenance,
+}: {
+  snap: GameStateSnapshot | null;
+  provenance?: string;
+}) {
+  const crew = crewFor(provenance);
   return (
     <section className="border-b border-line/60 p-4" aria-label="AI crew">
       <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-dim">AI crew</p>
       <ul className="space-y-2">
-        {CREW.map((c) => (
+        {crew.map((c) => (
           <li
             key={c.role}
             className="flex items-start gap-3 rounded-md border border-line/60 bg-ink-950/50 p-2.5"
             title={`${c.role} — ${c.does}`}
           >
             <span
-              className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-line"
+              className={`mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full ${c.live ? 'bg-state-verified' : 'bg-line'}`}
               aria-hidden
             />
             <span className="min-w-0 flex-1">
               <span className="block truncate font-mono text-xs text-steel">{c.role}</span>
               <span className="block truncate text-[11px] text-dim">{c.does}</span>
             </span>
-            <span className="rounded border border-line px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-dim">
-              {c.lands}
+            <span
+              className={`rounded border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider ${
+                c.live ? 'border-state-verified/50 text-state-verified' : 'border-line text-dim'
+              }`}
+            >
+              {c.live ? 'live' : c.lands}
             </span>
           </li>
         ))}

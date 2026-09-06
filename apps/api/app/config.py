@@ -15,9 +15,23 @@ class Settings(BaseSettings):
     environment: str = "development"
     log_level: str = "INFO"
 
+    # --- Game Director (M1) -------------------------------------------------
+    # LLM provider settings. When no API key is configured the Director falls
+    # back to a deterministic offline interpreter so the product never fakes
+    # output and stays fully testable (blueprint: never fake AI).
+    llm_provider: str = "openai"  # only "openai" supported in M1
+    llm_api_key: str = ""
+    llm_model: str = "gpt-4o-mini"
+    llm_base_url: str = "https://api.openai.com/v1"
+    director_timeout_seconds: int = 60
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def llm_configured(self) -> bool:
+        return bool(self.llm_api_key.strip())
 
 
 settings = Settings()

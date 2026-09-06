@@ -49,7 +49,13 @@ export function StudioShell({ project }: { project: ProjectDetail }) {
           <div className="min-w-0">
             <p className="truncate font-display text-sm font-semibold">{project.title}</p>
             <p className="font-mono text-[10px] uppercase tracking-widest text-dim">
-              {project.provenance === 'deterministic_sample' ? 'deterministic sample' : project.provenance}
+              {project.provenance === 'deterministic_sample'
+                ? 'deterministic sample'
+                : project.provenance === 'ai_generated'
+                  ? 'director · llm'
+                  : project.provenance === 'offline_draft'
+                    ? 'director · offline'
+                    : project.provenance}
             </p>
           </div>
         </div>
@@ -119,7 +125,7 @@ export function StudioShell({ project }: { project: ProjectDetail }) {
 
         {/* RIGHT — crew + live state + spec */}
         <aside className="hidden min-h-0 overflow-auto border-l border-line/60 bg-ink-900/40 lg:block">
-          <CrewPanel snap={snap} />
+          <CrewPanel snap={snap} provenance={project.provenance} />
           <SpecPanel bible={bible} />
         </aside>
       </div>
@@ -130,7 +136,8 @@ export function StudioShell({ project }: { project: ProjectDetail }) {
           <Playhead activeStage={activeStage} />
         </div>
         <p className="mt-2 text-center font-mono text-[10px] uppercase tracking-widest text-dim">
-          Live pipeline: the playhead tracks the real game status. AI crew roles arrive M1–M5.
+          Live pipeline: the playhead tracks the real game status. The Director drafts games from
+          M1; the rest of the crew lands M2–M5.
         </p>
       </footer>
     </div>

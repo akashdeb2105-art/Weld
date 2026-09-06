@@ -53,8 +53,8 @@ PROMPT
 ## Milestones
 
 ```text
-M0  Website + App Shell + Design System + deterministic sample game   ◄ current
-M1  Game Director + Game Bible
+M0  Website + App Shell + Design System + deterministic sample game   ✓ done
+M1  Game Director + Game Bible                                        ◄ current
 M2  Game Builder
 M3  Real Playtester
 M4  Bug → Fix → Regression

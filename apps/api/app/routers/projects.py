@@ -1,10 +1,25 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_session
-from ..models import Job, Project
-from ..schemas import GameBibleOut, JobOut, ProjectDetailOut, ProjectOut
+from ..director import (
+    DirectorError,
+    DirectorUnavailableError,
+    generate_game_bible,
+    slugify,
+)
+from ..models import GameBibleRow, Job, Project
+from ..schemas import (
+    CreateProjectRequest,
+    CreateProjectResponse,
+    GameBibleOut,
+    JobOut,
+    ProjectDetailOut,
+    ProjectOut,
+)
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 
@@ -41,4 +56,64 @@ def list_jobs(slug: str, session: Session = Depends(get_session)) -> list[Job]:
         raise HTTPException(status_code=404, detail=f"project '{slug}' not found")
     return list(
         session.scalars(select(Job).where(Job.project_id == project.id).order_by(Job.created_at))
+    )
+
+
+def _unique_slug(session: Session, base: str) -> str:
+    """Guarantee a free slug by suffixing -2, -3, … if the base is taken."""
+    slug = base
+    n = 2
+    while session.scalar(select(Project).where(Project.slug == slug)) is not None:
+        slug = f"{base}-{n}"
+        n += 1
+    return slug
+
+
+@router.post("", response_model=CreateProjectResponse, status_code=201)
+async def create_project(
+    body: CreateProjectRequest, session: Session = Depends(get_session)
+) -> CreateProjectResponse:
+    """Run the Game Director: prompt -> validated Game Bible -> new project.
+
+    The generated document is schema-validated before it is persisted, and the
+    run is recorded as a real Job so the Studio shows honest provenance.
+    """
+    try:
+        result = await generate_game_bible(body.prompt)
+    except DirectorUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except DirectorError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    doc = result.doc
+    game = doc["game"]
+    slug = _unique_slug(session, slugify(game["slug"]))
+
+    project = Project(
+        slug=slug,
+        title=game["title"],
+        summary=game["one_liner"],
+        genre=game["genre"],
+        status="draft",
+        provenance="ai_generated" if result.mode == "llm" else "offline_draft",
+    )
+    project.game_bible = GameBibleRow(schema_version=doc["schemaVersion"], data=doc)
+    project.jobs.append(
+        Job(
+            type="director_draft",
+            status="succeeded",
+            payload={"prompt": body.prompt, "mode": result.mode},
+            result={"notes": result.notes, "slug": slug},
+            finished_at=datetime.now(timezone.utc),
+        )
+    )
+    session.add(project)
+    session.commit()
+    session.refresh(project)
+
+    return CreateProjectResponse(
+        project=ProjectOut.model_validate(project),
+        game_bible=doc,
+        mode=result.mode,
+        notes=result.notes,
     )

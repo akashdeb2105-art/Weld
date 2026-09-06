@@ -16,10 +16,21 @@ Prompt → Game Bible → Build → Play → Test → Bug → Fix → Regression
 
 ---
 
-## Status: M0 — foundation
+## Status: M1 — Game Director
 
-This milestone establishes the real product surface and the first playable,
-honest experience. Everything visible is real; nothing is faked.
+M1 adds the first AI role: the **Game Director** turns a plain-language prompt
+into a validated **Game Bible** (the M0 contract), and the Studio shows it with
+honest provenance. M0's foundation is below. Everything visible is real;
+nothing is faked — when no LLM key is set, the Director uses a clearly-labeled
+deterministic offline composer instead of pretending to be a model.
+
+| M1 piece | What it is |
+| -------- | ---------- |
+| **Game Director** | `apps/api/app/director.py` — prompt → schema-validated GameBible. LLM-backed (OpenAI-compatible) with an honest offline fallback. |
+| **Create project** | `POST /api/v1/projects` + a real "New game" prompt form on `/app` (server action; browser never sees keys). |
+| **Provenance** | Generated projects labeled `ai_generated` (LLM) or `offline_draft`; crew panel marks Director/Designer **live** for them. |
+
+### M0 foundation
 
 | Piece | What it is |
 | ----- | ---------- |
@@ -32,10 +43,17 @@ honest experience. Everything visible is real; nothing is faked.
 | **Database** | PostgreSQL + Alembic migrations (SQLite for hermetic tests) |
 | **Local dev** | Docker Compose: web + api + postgres |
 
-Not here yet (by design): the AI Director/Builder/Playtester, real event
-streaming, publish, accounts. The deterministic sample stands in — clearly
-labeled — until the real engine lands in M1+. See the
+Not here yet (by design): the AI Builder/Playtester, real event streaming,
+publish, accounts. The deterministic sample stands in — clearly labeled — until
+the Builder lands in M2. See the
 [blueprint](WELD_AI_GAME_STUDIO_MASTER_BLUEPRINT.md).
+
+### Game Director configuration
+
+Set `LLM_API_KEY` (OpenAI-compatible) to enable the real LLM Director — see
+`.env.example`. With no key, `POST /api/v1/projects` uses the deterministic
+offline composer and labels the result `offline_draft`. M1 supports
+`top_down_arcade`, `platformer`, and `dodge_survival`.
 
 ## Quickstart
 

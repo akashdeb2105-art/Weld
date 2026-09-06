@@ -1,4 +1,4 @@
-# WELD Architecture
+﻿# WELD Architecture
 
 Modular monorepo. One deployable web app, one API, shared schema packages.
 Nothing distributed until measurements justify it.
@@ -6,28 +6,28 @@ Nothing distributed until measurements justify it.
 ## High level
 
 ```text
-                ┌────────────────────────────────────────────┐
-  Browser  ───► │  apps/web  (Next.js)                       │
-                │   /          public landing (real embed)   │
-                │   /app       projects                      │
-                │   /app/studio/[slug]  Studio               │
-                └───────────────┬────────────────────────────┘
-                                │ server-side fetch (no client-exposed internal URLs)
-                ┌───────────────▼────────────────────────────┐
-                │  apps/api  (FastAPI)                       │
-                │   /health                                  │
-                │   /api/v1/projects[/:slug[/gamebible|jobs]]│
-                └───────────────┬────────────────────────────┘
-                                │ SQLAlchemy
-                       ┌────────▼────────┐
-                       │  PostgreSQL     │
-                       └─────────────────┘
+                â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+  Browser  â”€â”€â”€â–º â”‚  apps/web  (Next.js)                       â”‚
+                â”‚   /          public landing (real embed)   â”‚
+                â”‚   /app       projects                      â”‚
+                â”‚   /app/studio/[slug]  Studio               â”‚
+                â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                                â”‚ server-side fetch (no client-exposed internal URLs)
+                â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+                â”‚  apps/api  (FastAPI)                       â”‚
+                â”‚   /health                                  â”‚
+                â”‚   /api/v1/projects[/:slug[/gamebible|jobs]]â”‚
+                â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                                â”‚ SQLAlchemy
+                       â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”
+                       â”‚  PostgreSQL     â”‚
+                       â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
   packages/gamebible   GameBible schema + fixture (shared source of truth)
   packages/sample-game Scrap Sprint (Phaser 3), driven by the fixture
 ```
 
-## Boundaries (blueprint §107)
+## Boundaries (blueprint Â§107)
 
 | Boundary   | Where | Rule |
 | ---------- | ----- | ---- |
@@ -40,10 +40,10 @@ Nothing distributed until measurements justify it.
 ## The GameBible as the spine
 
 Every project starts from a GameBible. In M0 the sample game *is built from*
-its GameBible fixture (`packages/gamebible/samples/scrap-sprint.gamebible.json`):
+its GameBible fixture (`packages/gamebible/src/scrap-sprint.gamebible.json`):
 the Phaser scene reads level bounds, spawns, timer, controls, and win target
 from it. The API validates and serves the same fixture. The Studio renders it.
-One artifact, four consumers — that's the pattern the AI crew inherits in M1+.
+One artifact, four consumers â€” that's the pattern the AI crew inherits in M1+.
 
 ## The sample game's logic/render split
 
@@ -57,7 +57,7 @@ state and feeds intents. Consequences:
 
 ## Honest states, no fake streams
 
-There is deliberately **no SSE/event stream in M0** — there is no engine to
+There is deliberately **no SSE/event stream in M0** â€” there is no engine to
 stream from. The Studio's playhead tracks the *real* game status via the
 game's postMessage bridge. Event streaming lands with the engine (M5).
 

@@ -1,9 +1,10 @@
 """Load and validate the canonical GameBible fixture shipped with the repo.
 
-The fixture lives in packages/gamebible/samples/ and is the single source of
-truth for the deterministic sample project. The API validates it at startup
-with its own Pydantic mirror of the contract (kept deliberately small), so a
-broken fixture fails fast instead of serving bad data.
+The fixture lives in packages/gamebible/src/ and is the single source of truth
+for the deterministic sample project (mirrored in TS as the typed `sampleBible`
+export). The API validates it at startup with its own Pydantic mirror of the
+contract (kept deliberately small), so a broken fixture fails fast instead of
+serving bad data.
 """
 
 import json
@@ -12,11 +13,12 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
+# gamebible.py -> app -> api -> apps -> <repo root>  (parents[3])
 FIXTURE_PATH = (
-    Path(__file__).resolve().parents[4]
+    Path(__file__).resolve().parents[3]
     / "packages"
     / "gamebible"
-    / "samples"
+    / "src"
     / "scrap-sprint.gamebible.json"
 )
 

@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir \
 
 # App source + migrations + the shared GameBible fixture the seed reads.
 COPY apps/api ./apps/api
-COPY packages/gamebible/samples ./packages/gamebible/samples
+COPY packages/gamebible/src/scrap-sprint.gamebible.json ./packages/gamebible/src/scrap-sprint.gamebible.json
 
 WORKDIR /srv/apps/api
 

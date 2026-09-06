@@ -1,4 +1,4 @@
-# Local development
+﻿# Local development
 
 ## Prereqs
 
@@ -20,8 +20,8 @@ cp .env.example .env
 
 ```bash
 docker compose up --build
-# web  → http://localhost:3000
-# api  → http://localhost:8000/health
+# web  â†’ http://localhost:3000
+# api  â†’ http://localhost:8000/health
 ```
 
 ## Run pieces separately

@@ -1,8 +1,9 @@
 """Pydantic API schemas — the wire contract (blueprint §53)."""
 
 from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class HealthResponse(BaseModel):
@@ -40,8 +41,17 @@ class ProjectOut(BaseModel):
 
 
 class ProjectDetailOut(ProjectOut):
+    # The ORM `game_bible` relationship is a GameBibleRow; the API exposes the
+    # raw GameBible document it holds (row.data), not the row wrapper.
     game_bible: dict | None
     jobs: list[JobOut]
+
+    @field_validator("game_bible", mode="before")
+    @classmethod
+    def _unwrap_row(cls, v: Any) -> Any:
+        if v is None or isinstance(v, dict):
+            return v
+        return getattr(v, "data", None)
 
 
 class GameBibleOut(BaseModel):

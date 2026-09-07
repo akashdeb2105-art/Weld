@@ -2,13 +2,14 @@
 
 import { useCallback, useState } from 'react';
 import Link from 'next/link';
-import type { Bug, PlaytestReport, ProjectDetail, RegressionSuite } from '@/lib/api';
+import type { Bug, PlaytestReport, Project, ProjectDetail, RegressionSuite } from '@/lib/api';
 import type { GameStateSnapshot, PipelineStage } from '@/lib/types';
 import { Wordmark } from '@/components/Wordmark';
 import { StatePill } from '@/components/StatePill';
 import { Playhead } from '@/components/Playhead';
 import { GameFrame } from '@/components/GameFrame';
 import { CrewPanel } from '@/components/studio/CrewPanel';
+import { LineagePanel } from '@/components/studio/LineagePanel';
 import { SpecPanel } from '@/components/studio/SpecPanel';
 import { PlaytestPanel } from '@/components/studio/PlaytestPanel';
 import { RegressionPanel } from '@/components/studio/RegressionPanel';
@@ -29,12 +30,14 @@ export function StudioShell({
   playtestError,
   bugs,
   regressions,
+  lineageChildren,
 }: {
   project: ProjectDetail;
   playtest: PlaytestReport | null;
   playtestError: string | null;
   bugs: Bug[];
   regressions: RegressionSuite | null;
+  lineageChildren: Project[];
 }) {
   const [snap, setSnap] = useState<GameStateSnapshot | null>(null);
   const onState = useCallback((s: GameStateSnapshot) => setSnap(s), []);
@@ -45,7 +48,7 @@ export function StudioShell({
   );
   // Left-nav tab: which panel the right rail shows. Every tab is real — the
   // crew behind each one has landed (M1–M6), so there's no honest "soon" left.
-  const [tab, setTab] = useState<'overview' | 'source' | 'tests' | 'issues'>('overview');
+  const [tab, setTab] = useState<'overview' | 'source' | 'tests' | 'issues' | 'versions'>('overview');
 
   const bible = project.game_bible as Record<string, any> | null;
 
@@ -112,6 +115,7 @@ export function StudioShell({
                 ['Source', 'source'],
                 ['Tests', 'tests'],
                 ['Issues', 'issues'],
+                ['Versions', 'versions'],
               ] as const
             ).map(([label, id]) => (
               <li key={id}>
@@ -185,6 +189,16 @@ export function StudioShell({
           )}
           {tab === 'issues' && (
             <RegressionPanel slug={project.slug} bugs={bugs} regressions={regressions} />
+          )}
+          {tab === 'versions' && (
+            <LineagePanel
+              title={project.title}
+              provenance={project.provenance}
+              createdAt={project.created_at}
+              updatedAt={project.updated_at}
+              jobs={project.jobs}
+              remixes={lineageChildren}
+            />
           )}
         </aside>
       </div>

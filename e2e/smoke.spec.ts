@@ -34,7 +34,15 @@ test.describe('WELD M0 smoke', () => {
   test('projects home lists the deterministic sample and links to the Studio', async ({ page }) => {
     await page.goto('/app');
     await expect(page.getByRole('heading', { name: 'Your games' })).toBeVisible();
-    const card = page.getByRole('link', { name: /Scrap Sprint/ });
+    // Target the sample by its exact Studio href + exact card title — NOT a
+    // loose /Scrap Sprint/ text match. A leftover remix ("Scrap Sprint
+    // (Remix)", created by publish.spec) would otherwise resolve the loose
+    // match to two cards and fail Playwright strict mode (this surfaced once
+    // the remix lineage became visible). The deterministic sample's own card
+    // is unique by href.
+    const card = page.locator('a[href="/app/studio/scrap-sprint"]').filter({
+      has: page.getByText('Scrap Sprint', { exact: true }),
+    });
     await expect(card).toBeVisible();
     await expect(card.getByText(/deterministic sample/i)).toBeVisible();
     await card.click();

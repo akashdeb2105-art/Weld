@@ -32,9 +32,13 @@ const project = {
   slug: 'scrap-sprint',
   title: 'Scrap Sprint',
   prompt: 'collect scrap',
+  summary: 'collect scrap',
+  genre: 'platformer',
   status: 'built',
   provenance: 'deterministic_sample',
   published: false,
+  created_at: '2026-09-01T00:00:00Z',
+  updated_at: '2026-09-01T00:00:00Z',
   game_bible: { game: { slug: 'scrap-sprint', title: 'Scrap Sprint' }, level: { width: 960 } },
   jobs: [],
 } as unknown as ProjectDetail;
@@ -60,13 +64,13 @@ describe('StudioShell project nav', () => {
 
   it('every nav tab is a real, clickable control (no more "soon" placeholders)', async () => {
     const view = render(
-      <StudioShell project={project} playtest={playtest} playtestError={null} bugs={[]} regressions={regressions} />,
+      <StudioShell project={project} playtest={playtest} playtestError={null} bugs={[]} regressions={regressions} lineageChildren={[]} />,
     );
     // The M5-era "lands in a later milestone" placeholders are gone — the crew
     // behind every tab has landed, so none may be disabled or marked "soon".
     expect(screen.queryByText(/soon/i)).toBeNull();
     const nav = tabBar();
-    for (const label of ['Overview', 'Source', 'Tests', 'Issues']) {
+    for (const label of ['Overview', 'Source', 'Tests', 'Issues', 'Versions']) {
       const el = within(nav).getByRole('button', { name: label });
       expect(el).not.toBeDisabled();
     }
@@ -79,7 +83,7 @@ describe('StudioShell project nav', () => {
 
   it('switches the right rail to real content for each tab', async () => {
     const view = render(
-      <StudioShell project={project} playtest={playtest} playtestError={null} bugs={[]} regressions={regressions} />,
+      <StudioShell project={project} playtest={playtest} playtestError={null} bugs={[]} regressions={regressions} lineageChildren={[]} />,
     );
     const nav = tabBar();
     // Source tab shows the real Game Bible (blueprint §6).
@@ -91,6 +95,12 @@ describe('StudioShell project nav', () => {
     // Issues tab shows the real regression panel.
     fireEvent.click(within(nav).getByRole('button', { name: 'Issues' }));
     expect(screen.getByLabelText('Regression')).toBeTruthy();
+    // Versions tab shows the real remix lineage (M6) — here, an honest
+    // not-a-remix original with no remixes yet.
+    fireEvent.click(within(nav).getByRole('button', { name: 'Versions' }));
+    expect(screen.getByLabelText('Versions')).toBeTruthy();
+    expect(screen.getByText(/An original/i)).toBeTruthy();
+    expect(screen.getByText(/No remixes yet/i)).toBeTruthy();
     // Overview returns to the crew view (Source panel swapped away, the
     // crew's bible editor is back).
     fireEvent.click(within(nav).getByRole('button', { name: 'Overview' }));

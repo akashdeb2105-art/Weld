@@ -34,6 +34,30 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
     /* older backend: panels show an honest empty state */
   }
 
+  // Remix lineage (M6): resolve this project's remix *children* — any project
+  // whose recorded remix job points back at this slug. The projects list has no
+  // jobs, so we fetch each remix project's detail to read its real parent. This
+  // keeps the Versions tab honest: it only shows lineage the data proves.
+  let children: import('@/lib/api').Project[] = [];
+  try {
+    const all = await api.listProjects();
+    const remixDetails = await Promise.all(
+      all
+        .filter((p) => p.slug !== slug && p.provenance === 'remix')
+        .map((p) => api.getProject(p.slug).catch(() => null)),
+    );
+    children = remixDetails.filter((d): d is NonNullable<typeof d> => {
+      if (!d) return false;
+      const rj = d.jobs.find((j) => j.type === 'remix');
+      const parent =
+        (rj?.result?.['remixed_from'] as string | undefined) ??
+        (rj?.payload?.['source_slug'] as string | undefined);
+      return parent === slug;
+    });
+  } catch {
+    /* older backend / list unavailable: Versions tab shows "No remixes yet" */
+  }
+
   return (
     <StudioShell
       project={project}
@@ -41,6 +65,7 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
       playtestError={playtestError}
       bugs={bugs}
       regressions={regressions}
+      lineageChildren={children}
     />
   );
 }

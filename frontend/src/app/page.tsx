@@ -4,6 +4,8 @@ import { Playhead } from '@/components/Playhead';
 import { LandingDemo } from '@/components/landing/LandingDemo';
 import { LoopScenes } from '@/components/landing/LoopScenes';
 import { QualityGates } from '@/components/landing/QualityGates';
+import { HeroBeat, HeroCinematic } from '@/components/motion/HeroCinematic';
+import { Reveal } from '@/components/motion/Reveal';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +41,7 @@ export default function LandingPage() {
       {/* ── 01 · The Idea ───────────────────────────────────── */}
       <section className="blueprint-grid relative overflow-hidden border-b border-line/60">
         <div className="mx-auto grid max-w-6xl gap-12 px-5 py-20 sm:py-28 lg:grid-cols-2 lg:gap-8">
+          <HeroCinematic>
           <div className="flex flex-col justify-center">
             <p className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-line bg-ink-900 px-3 py-1 font-mono text-[11px] uppercase tracking-widest text-steel">
               <span className="h-1.5 w-1.5 rounded-full bg-spark" aria-hidden />
@@ -72,9 +75,10 @@ export default function LandingPage() {
               No fake AI. The demo below is a real game, labeled honestly.
             </p>
           </div>
+          </HeroCinematic>
 
           {/* Prompt → fragments composition */}
-          <div className="relative flex items-center">
+          <Reveal delay={0.25} className="relative flex items-center">
             <div className="w-full rounded-xl border border-line bg-ink-900/80 p-5 shadow-2xl shadow-black/40">
               <div className="mb-3 flex items-center justify-between">
                 <span className="font-mono text-[11px] uppercase tracking-widest text-dim">
@@ -115,7 +119,7 @@ export default function LandingPage() {
                 ))}
               </div>
             </div>
-          </div>
+          </Reveal>
         </div>
 
         {/* Playhead strip */}

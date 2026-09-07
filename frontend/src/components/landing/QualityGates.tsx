@@ -1,3 +1,5 @@
+import { Reveal, RevealGroup, RevealItem } from '@/components/motion/Reveal';
+
 const GATES = [
   ['Builds', 'compiles and bundles clean'],
   ['Boots', 'canvas exists, scene starts'],
@@ -17,7 +19,7 @@ const GATES = [
 export function QualityGates() {
   return (
     <div className="grid items-start gap-10 lg:grid-cols-2">
-      <div>
+      <Reveal>
         <p className="font-mono text-[11px] uppercase tracking-widest text-spark">
           Evidence, not adjectives
         </p>
@@ -34,28 +36,27 @@ export function QualityGates() {
           <br />
           Good. Let’s test it.”
         </blockquote>
-      </div>
-      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      </Reveal>
+      <RevealGroup as="ul" className="grid grid-cols-1 gap-2 sm:grid-cols-2" stagger={0.06}>
         {GATES.map(([name, desc]) => (
-          <li
-            key={name}
-            className="flex items-start gap-3 rounded-md border border-line bg-ink-900/60 p-3.5"
-          >
-            <span
-              className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border border-state-verified/50 font-mono text-[11px] text-state-verified"
-              aria-hidden
-            >
-              ✓
-            </span>
-            <span>
-              <span className="block font-mono text-xs font-medium uppercase tracking-wider text-paper">
-                {name}
+          <RevealItem as="li" key={name} y={14}>
+            <div className="flex h-full items-start gap-3 rounded-md border border-line bg-ink-900/60 p-3.5">
+              <span
+                className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border border-state-verified/50 font-mono text-[11px] text-state-verified"
+                aria-hidden
+              >
+                ✓
               </span>
-              <span className="mt-0.5 block text-xs text-dim">{desc}</span>
-            </span>
-          </li>
+              <span>
+                <span className="block font-mono text-xs font-medium uppercase tracking-wider text-paper">
+                  {name}
+                </span>
+                <span className="mt-0.5 block text-xs text-dim">{desc}</span>
+              </span>
+            </div>
+          </RevealItem>
         ))}
-      </ul>
+      </RevealGroup>
     </div>
   );
 }

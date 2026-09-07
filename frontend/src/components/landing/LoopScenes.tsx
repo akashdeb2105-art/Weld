@@ -1,4 +1,5 @@
 import { StatePill } from '@/components/StatePill';
+import { RevealGroup, RevealItem } from '@/components/motion/Reveal';
 
 const SCENES: {
   n: string;
@@ -53,23 +54,24 @@ const SCENES: {
 
 export function LoopScenes() {
   return (
-    <ol className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <RevealGroup as="ol" className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" stagger={0.1}>
       {SCENES.map((s) => (
-        <li
-          key={s.n}
-          className="group relative rounded-lg border border-line bg-ink-900/60 p-5 transition-colors hover:border-line-strong"
-        >
-          <div className="mb-3 flex items-center justify-between">
-            <span className="font-mono text-[11px] tracking-widest text-dim">{s.n}</span>
-            <StatePill state={s.state} />
+        <RevealItem as="li" key={s.n} className="h-full">
+          <div className="group relative h-full rounded-lg border border-line bg-ink-900/60 p-5 transition-colors hover:border-line-strong">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="font-mono text-[11px] tracking-widest text-dim">{s.n}</span>
+              <StatePill state={s.state} />
+            </div>
+            <h3 className="font-display text-lg font-semibold leading-snug text-paper">
+              {s.title}
+            </h3>
+            <p className="mt-2 text-sm leading-relaxed text-steel">{s.body}</p>
+            <p className="mt-4 border-t border-line/60 pt-3 font-mono text-[10px] uppercase tracking-widest text-spark-soft">
+              {s.tag}
+            </p>
           </div>
-          <h3 className="font-display text-lg font-semibold leading-snug text-paper">{s.title}</h3>
-          <p className="mt-2 text-sm leading-relaxed text-steel">{s.body}</p>
-          <p className="mt-4 border-t border-line/60 pt-3 font-mono text-[10px] uppercase tracking-widest text-spark-soft">
-            {s.tag}
-          </p>
-        </li>
+        </RevealItem>
       ))}
-    </ol>
+    </RevealGroup>
   );
 }

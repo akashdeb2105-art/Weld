@@ -33,6 +33,9 @@ class Project(Base):
     jobs: Mapped[list["Job"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    bugs: Mapped[list["Bug"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
 
 
 class GameBibleRow(Base):
@@ -64,3 +67,31 @@ class Job(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     project: Mapped[Project] = relationship(back_populates="jobs")
+
+
+class Bug(Base):
+    """A quality-gate failure captured as a regression (M4: Bug -> Fix -> Regression).
+
+    The honest loop: a playtester gate fails, we record it as a Bug with the
+    gate's evidence; a fix edits the bible; retesting flips the bug to fixed
+    and freezes a *replayable* regression case (the exact broken bible + the
+    gate that must now pass). The regression suite is the set of fixed bugs --
+    replaying it re-runs the playtester against each frozen case and asserts
+    the gate still passes, so a fixed bug can never silently come back.
+    """
+
+    __tablename__ = "bugs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    gate: Mapped[str] = mapped_column(String(60))
+    summary: Mapped[str] = mapped_column(Text, default="")
+    evidence: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(40), default="open")  # open | fixed
+    # The bible exactly as it failed. Frozen at record time so the regression
+    # stays meaningful even after the project's live bible is fixed.
+    broken_bible: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    fixed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    project: Mapped[Project] = relationship(back_populates="bugs")

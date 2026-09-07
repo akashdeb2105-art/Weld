@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { api, type PlaytestReport } from '@/lib/api';
+import { api, type Bug, type PlaytestReport, type RegressionSuite } from '@/lib/api';
 import { StudioShell } from '@/components/studio/StudioShell';
 
 export const dynamic = 'force-dynamic';
@@ -24,5 +24,23 @@ export default async function StudioPage({ params }: { params: Promise<{ slug: s
     playtestError = err instanceof Error ? err.message : 'playtest unavailable';
   }
 
-  return <StudioShell project={project} playtest={playtest} playtestError={playtestError} />;
+  // Bugs + regression suite (M4) are also best-effort so the Studio still
+  // renders if the backend predates the M4 endpoints.
+  let bugs: Bug[] = [];
+  let regressions: RegressionSuite | null = null;
+  try {
+    [bugs, regressions] = await Promise.all([api.listBugs(slug), api.getRegressions(slug)]);
+  } catch {
+    /* older backend: panels show an honest empty state */
+  }
+
+  return (
+    <StudioShell
+      project={project}
+      playtest={playtest}
+      playtestError={playtestError}
+      bugs={bugs}
+      regressions={regressions}
+    />
+  );
 }

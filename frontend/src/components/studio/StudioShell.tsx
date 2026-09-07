@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import Link from 'next/link';
-import type { PlaytestReport, ProjectDetail } from '@/lib/api';
+import type { Bug, PlaytestReport, ProjectDetail, RegressionSuite } from '@/lib/api';
 import type { GameStateSnapshot, PipelineStage } from '@/lib/types';
 import { Wordmark } from '@/components/Wordmark';
 import { StatePill } from '@/components/StatePill';
@@ -11,6 +11,7 @@ import { GameFrame } from '@/components/GameFrame';
 import { CrewPanel } from '@/components/studio/CrewPanel';
 import { SpecPanel } from '@/components/studio/SpecPanel';
 import { PlaytestPanel } from '@/components/studio/PlaytestPanel';
+import { RegressionPanel } from '@/components/studio/RegressionPanel';
 import { BibleEditPanel } from '@/components/studio/BibleEditPanel';
 
 /**
@@ -25,10 +26,14 @@ export function StudioShell({
   project,
   playtest,
   playtestError,
+  bugs,
+  regressions,
 }: {
   project: ProjectDetail;
   playtest: PlaytestReport | null;
   playtestError: string | null;
+  bugs: Bug[];
+  regressions: RegressionSuite | null;
 }) {
   const [snap, setSnap] = useState<GameStateSnapshot | null>(null);
   const onState = useCallback((s: GameStateSnapshot) => setSnap(s), []);
@@ -137,7 +142,8 @@ export function StudioShell({
         <aside className="hidden min-h-0 overflow-auto border-l border-line/60 bg-ink-900/40 lg:block">
           <CrewPanel snap={snap} provenance={project.provenance} />
           {bible && <BibleEditPanel slug={project.slug} bible={bible} />}
-          <PlaytestPanel report={playtest} unavailable={playtestError} />
+          <PlaytestPanel slug={project.slug} report={playtest} unavailable={playtestError} />
+          <RegressionPanel slug={project.slug} bugs={bugs} regressions={regressions} />
           <SpecPanel bible={bible} />
         </aside>
       </div>

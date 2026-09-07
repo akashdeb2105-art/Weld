@@ -154,3 +154,66 @@ class BuildResponse(BaseModel):
     project: ProjectOut
     manifest: BuildManifestOut
     reused: bool  # True when the bible was unchanged and the prior build was reused
+
+
+#  M4 Bug -> Fix -> Regression
+
+
+class RecordBugRequest(BaseModel):
+    """Capture a failed playtest gate as a bug (M4).
+
+    The client sends the gate's verdict from the playtest report it just saw,
+    so the recorded evidence is exactly what the Playtester reported -- never
+    re-run or reinterpreted at record time.
+    """
+
+    gate: str = Field(min_length=1, max_length=60)
+    summary: str = Field(default="", max_length=400)
+    evidence: str = Field(default="", max_length=2000)
+
+
+class BugOut(BaseModel):
+    """A recorded quality-gate failure and its regression state."""
+
+    id: int
+    project_slug: str
+    gate: str
+    summary: str
+    evidence: str
+    status: str  # "open" | "fixed"
+    created_at: datetime
+    fixed_at: datetime | None
+
+
+class RetestResponse(BaseModel):
+    """Retest a bug against the project's current bible (M4).
+
+    `fixed_now` is True only when the gate that failed now passes against the
+    live bible -- an honest flip, not an assumed one. When True the bug freezes
+    its broken bible as a replayable regression case.
+    """
+
+    bug: BugOut
+    fixed_now: bool
+    gate_passed: bool
+    evidence: str
+
+
+class RegressionCaseResult(BaseModel):
+    """One replayed regression case: does the frozen broken scenario still pass
+    the gate it originally failed, under the current engine?"""
+
+    bug_id: int
+    gate: str
+    passed: bool
+    evidence: str
+
+
+class RegressionSuiteOut(BaseModel):
+    """Replay of every fixed bug's frozen regression case (M4)."""
+
+    project_slug: str
+    total: int
+    passing: int
+    regressions: list[RegressionCaseResult]
+    all_passing: bool

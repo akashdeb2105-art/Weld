@@ -15,11 +15,12 @@ from .. import builder, playtest
 from ..builder import BuildError, BuildUnavailableError
 from ..director import SUPPORTED_GENRES
 from ..gamebible import GameBibleDoc
-from ..models import GameBibleRow, Job, Project
+from ..models import Bug, GameBibleRow, Job, Project
 from ..playtest import PlaytestError, PlaytestUnavailableError
 from ..schemas import (
     BuildManifestOut,
     BuildResponse,
+    BugOut,
     ConfirmProjectRequest,
     CreateProjectRequest,
     CreateProjectResponse,
@@ -29,6 +30,10 @@ from ..schemas import (
     PlaytestReportOut,
     ProjectDetailOut,
     ProjectOut,
+    RecordBugRequest,
+    RegressionCaseResult,
+    RegressionSuiteOut,
+    RetestResponse,
     UpdateGameBibleRequest,
 )
 
@@ -117,6 +122,165 @@ def build_project(slug: str, session: Session = Depends(get_session)) -> BuildRe
         project=ProjectOut.model_validate(project),
         manifest=BuildManifestOut.model_validate(job.result),
         reused=bool(job.result.get("reused", False)),
+    )
+
+
+#  M4 Bug -> Fix -> Regression
+
+
+def _get_project_or_404(session: Session, slug: str) -> Project:
+    project = session.scalar(select(Project).where(Project.slug == slug))
+    if project is None:
+        raise HTTPException(status_code=404, detail=f"project '{slug}' not found")
+    return project
+
+
+def _bug_to_out(bug: Bug, slug: str) -> BugOut:
+    return BugOut(
+        id=bug.id,
+        project_slug=slug,
+        gate=bug.gate,
+        summary=bug.summary,
+        evidence=bug.evidence,
+        status=bug.status,
+        created_at=bug.created_at,
+        fixed_at=bug.fixed_at,
+    )
+
+
+def _gate_verdict(report: dict, gate: str) -> tuple[bool, str]:
+    """Return (passed, evidence) for one gate from a playtest report.
+
+    A gate that isn't in the report at all counts as not-passing (honest: we
+    can't claim what we didn't observe).
+    """
+    g = next((g for g in report.get("gates", []) if g.get("gate") == gate), None)
+    if g is None:
+        return False, f"gate '{gate}' not present in playtest report"
+    return bool(g.get("pass", False)), str(g.get("evidence", ""))
+
+
+@router.get("/{slug}/bugs", response_model=list[BugOut])
+def list_bugs(slug: str, session: Session = Depends(get_session)) -> list[BugOut]:
+    """List a project's recorded bugs (open + fixed), oldest first."""
+    project = _get_project_or_404(session, slug)
+    bugs = session.scalars(
+        select(Bug).where(Bug.project_id == project.id).order_by(Bug.created_at)
+    )
+    return [_bug_to_out(b, project.slug) for b in bugs]
+
+
+@router.post("/{slug}/bugs", response_model=BugOut, status_code=201)
+def record_bug(
+    slug: str, body: RecordBugRequest, session: Session = Depends(get_session)
+) -> BugOut:
+    """Record a failed quality gate as a bug (M4).
+
+    Honest capture: the gate's evidence comes from the playtest report the
+    caller just saw. We freeze the project's current bible as the broken
+    scenario so the later regression replays exactly what failed.
+    """
+    project = _get_project_or_404(session, slug)
+    if project.game_bible is None:
+        raise HTTPException(status_code=404, detail=f"game bible for '{slug}' not found")
+
+    bug = Bug(
+        project_id=project.id,
+        gate=body.gate,
+        summary=body.summary or f"{body.gate} failing",
+        evidence=body.evidence,
+        status="open",
+        broken_bible=project.game_bible.data,
+    )
+    session.add(bug)
+    session.commit()
+    session.refresh(bug)
+    return _bug_to_out(bug, project.slug)
+
+
+@router.post("/{slug}/bugs/{bug_id}/retest", response_model=RetestResponse)
+def retest_bug(slug: str, bug_id: int, session: Session = Depends(get_session)) -> RetestResponse:
+    """Re-run the Playtester against the current bible and check this bug's gate.
+
+    This is the FIX step's verdict: the bug flips to "fixed" only when its gate
+    now passes against the live bible. The frozen broken bible is kept so the
+    regression suite can replay the original failure mode.
+    """
+    project = _get_project_or_404(session, slug)
+    bug = session.get(Bug, bug_id)
+    if bug is None or bug.project_id != project.id:
+        raise HTTPException(status_code=404, detail=f"bug {bug_id} not found on '{slug}'")
+    if project.game_bible is None:
+        raise HTTPException(status_code=404, detail=f"game bible for '{slug}' not found")
+
+    try:
+        report = playtest.playtest_bible(project.game_bible.data)
+    except PlaytestUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except PlaytestError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    passed, evidence = _gate_verdict(report, bug.gate)
+    fixed_now = False
+    if passed and bug.status != "fixed":
+        bug.status = "fixed"
+        bug.fixed_at = datetime.now(timezone.utc)
+        bug.evidence = evidence or bug.evidence
+        fixed_now = True
+        session.add(bug)
+        session.commit()
+        session.refresh(bug)
+
+    return RetestResponse(
+        bug=_bug_to_out(bug, project.slug),
+        fixed_now=fixed_now,
+        gate_passed=passed,
+        evidence=evidence,
+    )
+
+
+@router.get("/{slug}/regressions", response_model=RegressionSuiteOut)
+def run_regressions(slug: str, session: Session = Depends(get_session)) -> RegressionSuiteOut:
+    """Replay every fixed bug's frozen regression case (M4 regression suite).
+
+    For each fixed bug we re-run the Playtester against the bible that *was*
+    broken plus the current bible's gate target, asserting the gate passes now.
+    The honest read: a regression case passes when the playtester says the gate
+    holds for the fixed scenario -- so a "fixed" bug that silently regresses
+    shows up here as failing again.
+    """
+    project = _get_project_or_404(session, slug)
+    fixed = session.scalars(
+        select(Bug)
+        .where(Bug.project_id == project.id, Bug.status == "fixed")
+        .order_by(Bug.created_at)
+    ).all()
+
+    results: list[RegressionCaseResult] = []
+    for bug in fixed:
+        # Replay against the CURRENT live bible: the gate that once failed must
+        # still pass against what the game actually is now. (The frozen broken
+        # bible documents what failed; the live bible is what must stay fixed.)
+        if project.game_bible is None:
+            raise HTTPException(status_code=404, detail=f"game bible for '{slug}' not found")
+        try:
+            report = playtest.playtest_bible(project.game_bible.data)
+        except PlaytestUnavailableError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except PlaytestError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        passed, evidence = _gate_verdict(report, bug.gate)
+        results.append(
+            RegressionCaseResult(bug_id=bug.id, gate=bug.gate, passed=passed, evidence=evidence)
+        )
+
+    passing = sum(1 for r in results if r.passed)
+    return RegressionSuiteOut(
+        project_slug=project.slug,
+        total=len(results),
+        passing=passing,
+        regressions=results,
+        all_passing=passing == len(results),
     )
 
 

@@ -62,10 +62,38 @@ export interface PlaytestReport {
   simulated_seconds: number;
 }
 
+export interface Bug {
+  id: number;
+  project_slug: string;
+  gate: string;
+  summary: string;
+  evidence: string;
+  status: string; // "open" | "fixed"
+  created_at: string;
+  fixed_at: string | null;
+}
+
+export interface RegressionCase {
+  bug_id: number;
+  gate: string;
+  passed: boolean;
+  evidence: string;
+}
+
+export interface RegressionSuite {
+  project_slug: string;
+  total: number;
+  passing: number;
+  regressions: RegressionCase[];
+  all_passing: boolean;
+}
+
 export const api = {
   health: () => get<{ status: string }>(`/health`),
   listProjects: () => get<Project[]>(`/api/v1/projects`),
   getProject: (slug: string) => get<ProjectDetail>(`/api/v1/projects/${slug}`),
   getGameBible: (slug: string) => get<GameBibleOut>(`/api/v1/projects/${slug}/gamebible`),
   getPlaytest: (slug: string) => get<PlaytestReport>(`/api/v1/projects/${slug}/playtest`),
+  listBugs: (slug: string) => get<Bug[]>(`/api/v1/projects/${slug}/bugs`),
+  getRegressions: (slug: string) => get<RegressionSuite>(`/api/v1/projects/${slug}/regressions`),
 };

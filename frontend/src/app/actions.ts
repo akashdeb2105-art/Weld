@@ -137,3 +137,55 @@ export async function updateGameBible(
   }
   return { ok: true };
 }
+
+/*  M4 Bug -> Fix -> Regression  */
+
+export type RecordBugResult = { ok: true } | { ok: false; error: string };
+export type RetestBugResult =
+  | { ok: true; fixed: boolean; evidence: string }
+  | { ok: false; error: string };
+
+/** Log a failed playtest gate as a bug, freezing the current (broken) bible. */
+export async function recordBug(
+  slug: string,
+  gate: string,
+  evidence: string,
+): Promise<RecordBugResult> {
+  let res: Response;
+  try {
+    res = await fetch(`${base}/api/v1/projects/${slug}/bugs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gate, evidence }),
+      cache: 'no-store',
+    });
+  } catch {
+    return { ok: false, error: 'API unreachable. Start the backend and try again.' };
+  }
+  if (!res.ok) {
+    return { ok: false, error: await readError(res, `Could not record bug (${res.status}).`) };
+  }
+  return { ok: true };
+}
+
+/**
+ * Retest a bug against the current bible. Returns whether its gate now passes
+ * (the honest fix verdict). When it flips to fixed, the backend freezes a
+ * replayable regression case.
+ */
+export async function retestBug(slug: string, bugId: number): Promise<RetestBugResult> {
+  let res: Response;
+  try {
+    res = await fetch(`${base}/api/v1/projects/${slug}/bugs/${bugId}/retest`, {
+      method: 'POST',
+      cache: 'no-store',
+    });
+  } catch {
+    return { ok: false, error: 'API unreachable. Start the backend and try again.' };
+  }
+  if (!res.ok) {
+    return { ok: false, error: await readError(res, `Could not retest bug (${res.status}).`) };
+  }
+  const body = (await res.json()) as { fixed_now: boolean; gate_passed: boolean; evidence: string };
+  return { ok: true, fixed: body.fixed_now, evidence: body.evidence };
+}

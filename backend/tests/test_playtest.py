@@ -124,5 +124,6 @@ def test_playtest_bible_end_to_end(client: TestClient) -> None:
         "lose_reachable",
         "restart_works",
         "renders",
+        "performance",
     }
     assert all(gates.values())

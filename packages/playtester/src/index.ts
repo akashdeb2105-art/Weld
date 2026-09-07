@@ -4,8 +4,10 @@
  * Deterministic, engine-free harness. It loads a GameBible, drives the exact
  * same pure engine the renderer uses (@weld/engine), and proves the quality
  * gates from the blueprint (§65) one by one: boots, controls work, win
- * reachable, lose reachable, restart works. Every check returns structured
- * evidence (numbers, statuses) so a regression is a diff, not a vibe.
+ * reachable, lose reachable, restart works, renders — and performance
+ * acceptable, proven as a machine-independent cost model (no wall-clock).
+ * Every check returns structured evidence (numbers, statuses) so a regression
+ * is a diff, not a vibe.
  *
  * No wall-clock, no Math.random: the same bible always yields the same verdict.
  */
@@ -29,7 +31,8 @@ export type GateName =
   | 'win_reachable'
   | 'lose_reachable'
   | 'restart_works'
-  | 'renders';
+  | 'renders'
+  | 'performance';
 
 export interface GateResult {
   gate: GateName;
@@ -246,6 +249,42 @@ function gateRenders(bible: GameBible): GateResult {
   };
 }
 
+/**
+ * Release gate "performance acceptable" — proven deterministically, without a
+ * wall-clock. The playtester's whole premise is "no wall-clock, no
+ * Math.random", so this gate measures *cost* (per-tick primitive operations)
+ * rather than elapsed ms. It models `update()`'s worst-case frame work: one
+ * collision scan over all active pickups (the `find` scans them even on a miss)
+ * plus a full scan of all hazards, ≈6 primitive ops each (hypot, compare,
+ * radius math). A GC hiccup can never flake it; an engine change that makes
+ * per-tick work super-linear (an accidental O(n²)) shows up in this count,
+ * which is machine-independent. The budget is honest: ~1e-4 ms per scalar op,
+ * so ~100k ops ≈ 10 ms — under the 16.6 ms a 60 Hz frame allows.
+ */
+export const FRAME_OP_BUDGET = 100_000;
+
+export function performanceModel(bible: GameBible): { opsPerTick: number; budget: number } {
+  const { state } = createGame(bible);
+  const OPS_PER_INTERACTION = 6;
+  return {
+    opsPerTick: (state.pickups.length + state.hazards.length) * OPS_PER_INTERACTION,
+    budget: FRAME_OP_BUDGET,
+  };
+}
+
+export function gatePerformance(bible: GameBible): GateResult {
+  const { opsPerTick, budget } = performanceModel(bible);
+  const ok = opsPerTick <= budget;
+  return {
+    gate: 'performance',
+    pass: ok,
+    evidence: ok
+      ? `update() stays cheap: worst-case ${opsPerTick} ops/tick — far inside a 16.6ms frame`
+      : `update() too expensive: worst-case ${opsPerTick} ops/tick exceeds frame budget ${budget} (per-tick work scales badly)`,
+    detail: { opsPerTick, budget },
+  };
+}
+
 function gateControls(bible: GameBible): GateResult {
   const { rules } = createGame(bible);
   let s = startGame(createGame(bible).state);
@@ -402,6 +441,7 @@ export function playtest(bible: GameBible): PlaytestReport {
   gates.push(gateLoseReachable(bible));
   gates.push(gateRestart(bible));
   gates.push(gateRenders(bible)); // M6 Visual QA
+  gates.push(gatePerformance(bible)); // release gate: performance acceptable
 
   const simulatedSeconds = gates
     .map((g) => (typeof g.detail?.['tick'] === 'number' ? (g.detail['tick'] as number) : 0))

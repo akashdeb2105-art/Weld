@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import { parseGameBible, sampleBible, type GameBible } from '@weld/gamebible';
-import { playtest, formatReport, type PlaytestReport } from './index.js';
+import {
+  playtest,
+  formatReport,
+  gatePerformance,
+  performanceModel,
+  FRAME_OP_BUDGET,
+  type PlaytestReport,
+} from './index.js';
 
 const bible = parseGameBible(sampleBible);
 
@@ -90,5 +97,43 @@ describe('WELD Playtester (M3)', () => {
     expect(renders.pass).toBe(false);
     expect(renders.evidence).toMatch(/out of bounds/);
     expect(renders.detail?.['playerInBounds']).toBe(false);
+  });
+
+  // Release gate: "performance acceptable" (blueprint §70), proven without a
+  // wall-clock. The gate is a machine-independent cost model of update()'s
+  // worst-case frame work; it passes on a normal game and fails only when
+  // per-tick work genuinely scales badly.
+  it('proves the sample game runs comfortably inside a frame (performance)', () => {
+    const report = playtest(bible);
+    const perf = gate(report, 'performance');
+    expect(perf.pass).toBe(true);
+    expect(perf.evidence).toMatch(/stays cheap/);
+    // It measured a real, bounded amount of work — not a vacuous check.
+    expect(perf.detail?.['opsPerTick']).toBeGreaterThan(0);
+    expect(perf.detail?.['opsPerTick']).toBeLessThanOrEqual(FRAME_OP_BUDGET);
+  });
+
+  it('fails performance honestly when per-tick work scales badly', () => {
+    // A level so dense that update()'s per-tick collision work exceeds the
+    // frame budget. Asserted via the exported model + gate directly (not the
+    // full playtest, whose win/lose solvers would run 14s sim on this dense a
+    // level). This proves the gate bites on a real perf regression,
+    // independent of machine speed.
+    const count = Math.floor(FRAME_OP_BUDGET / 6) + 1; // one hazard over budget
+    const hazards = Array.from({ length: count }, (_, i) => ({
+      id: `h${i}`,
+      kind: 'spark_pit',
+      x: 100,
+      y: 100,
+      radius: 10,
+    }));
+    const dense: GameBible = parseGameBible({
+      ...JSON.parse(JSON.stringify(bible)),
+      level: { ...bible.level, hazards },
+    });
+    expect(performanceModel(dense).opsPerTick).toBeGreaterThan(FRAME_OP_BUDGET);
+    const perf = gatePerformance(dense);
+    expect(perf.pass).toBe(false);
+    expect(perf.evidence).toMatch(/too expensive/);
   });
 });

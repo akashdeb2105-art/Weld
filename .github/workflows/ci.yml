@@ -30,6 +30,13 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # The @weld/* packages resolve each other via their built dist/ output
+      # (gamebible's types live in dist/index.d.ts). Build it before the other
+      # workspaces typecheck, or CI fails with "Cannot find module
+      # '@weld/gamebible'" on a clean checkout.
+      - name: Build gamebible (types for other workspaces)
+        run: npm run build -w @weld/gamebible
+
       - name: Typecheck (TS)
         run: npm run typecheck
 

@@ -34,10 +34,11 @@ class Settings(BaseSettings):
     fireworks_base_url: str = "https://api.fireworks.ai/inference/v1"
     fireworks_model: str = "accounts/fireworks/models/glm-5p3-flash"
     fireworks_model_fallback: str = "accounts/fireworks/models/kimi-k3"
-    # Provider 2 (fallback): Google AI Studio — Gemini Flash. Needs a real
-    # AI Studio API key (starts with "AIza"); OAuth access tokens will not work.
+    # Provider 2 (fallback): Google AI Studio — Gemini Flash. The specific
+    # versioned models (gemini-2.0-flash etc.) are retired for new keys; the
+    # "-latest" alias tracks the current Flash model and stays valid.
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-flash-latest"
     # Provider 3 (fallback): OpenRouter (OpenAI-compatible).
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"

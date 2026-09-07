@@ -43,6 +43,9 @@ export function StudioShell({
     (msg: string) => setRuntimeErrors((prev) => [...prev, msg]),
     [],
   );
+  // Left-nav tab: which panel the right rail shows. Every tab is real — the
+  // crew behind each one has landed (M1–M6), so there's no honest "soon" left.
+  const [tab, setTab] = useState<'overview' | 'source' | 'tests' | 'issues'>('overview');
 
   const bible = project.game_bible as Record<string, any> | null;
 
@@ -103,27 +106,27 @@ export function StudioShell({
         >
           <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-dim">Project</p>
           <ul className="space-y-1">
-            {[
-              ['Overview', true],
-              ['Game Bible', true],
-              ['Source', false],
-              ['Tests', false],
-              ['Issues', false],
-              ['Versions', false],
-            ].map(([label, active]) => (
-              <li key={label as string}>
-                <span
-                  className={`block rounded px-3 py-2 font-mono text-xs uppercase tracking-wider ${
-                    active
+            {(
+              [
+                ['Overview', 'overview'],
+                ['Source', 'source'],
+                ['Tests', 'tests'],
+                ['Issues', 'issues'],
+              ] as const
+            ).map(([label, id]) => (
+              <li key={id}>
+                <button
+                  type="button"
+                  onClick={() => setTab(id)}
+                  aria-current={tab === id ? 'page' : undefined}
+                  className={`block w-full rounded px-3 py-2 text-left font-mono text-xs uppercase tracking-wider transition ${
+                    tab === id
                       ? 'bg-ink-800 text-paper'
-                      : 'cursor-not-allowed text-dim'
+                      : 'text-dim hover:bg-ink-900 hover:text-steel'
                   }`}
-                  title={active ? undefined : 'Lands in a later milestone'}
-                  aria-disabled={!active}
                 >
-                  {label as string}
-                  {!active && <span className="float-right text-[9px] text-dim/60">soon</span>}
-                </span>
+                  {label}
+                </button>
               </li>
             ))}
           </ul>
@@ -147,13 +150,42 @@ export function StudioShell({
           </div>
         </section>
 
-        {/* RIGHT — crew + live state + spec */}
+        {/* RIGHT — the selected panel. Every tab is real: the data behind each
+            one already exists (the Director's bible, the 9-gate playtest
+            report, the regression suite), so switching shows real content. */}
         <aside className="hidden min-h-0 overflow-auto border-l border-line/60 bg-ink-900/40 lg:block">
-          <CrewPanel snap={snap} provenance={project.provenance} />
-          {bible && <BibleEditPanel slug={project.slug} bible={bible} />}
-          <PlaytestPanel slug={project.slug} report={playtest} unavailable={playtestError} />
-          <RegressionPanel slug={project.slug} bugs={bugs} regressions={regressions} />
-          <SpecPanel bible={bible} />
+          {tab === 'overview' && (
+            <>
+              <CrewPanel snap={snap} provenance={project.provenance} />
+              {bible && <BibleEditPanel slug={project.slug} bible={bible} />}
+              <SpecPanel bible={bible} />
+            </>
+          )}
+          {tab === 'source' && (
+            <>
+              {/* Blueprint §6: generated games stay ordinary, readable source.
+                  The Game Bible is the source the whole crew builds from. */}
+              <section className="p-4" aria-label="Source">
+                <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-dim">
+                  Source · Game Bible
+                </p>
+                {bible ? (
+                  <pre className="max-h-[70vh] overflow-auto rounded-md border border-line/60 bg-ink-950 p-3 font-mono text-[11px] leading-relaxed text-steel">
+                    {JSON.stringify(bible, null, 2)}
+                  </pre>
+                ) : (
+                  <p className="text-xs text-dim">No game bible recorded for this project.</p>
+                )}
+              </section>
+              {bible && <BibleEditPanel slug={project.slug} bible={bible} />}
+            </>
+          )}
+          {tab === 'tests' && (
+            <PlaytestPanel slug={project.slug} report={playtest} unavailable={playtestError} />
+          )}
+          {tab === 'issues' && (
+            <RegressionPanel slug={project.slug} bugs={bugs} regressions={regressions} />
+          )}
         </aside>
       </div>
 
@@ -163,8 +195,8 @@ export function StudioShell({
           <Playhead activeStage={activeStage} />
         </div>
         <p className="mt-2 text-center font-mono text-[10px] uppercase tracking-widest text-dim">
-          Live pipeline: the playhead tracks the real game status. The Director drafts games from
-          M1; the rest of the crew lands M2–M5.
+          Live pipeline: the playhead tracks the real game status. The full crew is live — Director,
+          Builder, Playtester, and Bug→Fix regression (M1–M4).
         </p>
       </footer>
     </div>

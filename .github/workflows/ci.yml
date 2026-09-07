@@ -43,19 +43,22 @@ jobs:
       - name: Unit tests (TS)
         run: npm test
 
-      # Build all workspaces before pytest: the M2 builder shells out to the
-      # playtester CLI (packages/playtester/dist/cli.cjs) as the named build
-      # step's gate, so the backend tests need that artifact present on a clean
-      # checkout. Building here (instead of after) keeps build output available
-      # to both pytest and the e2e step that follows.
-      - name: Build (sample game + web)
-        run: npm run build
+      # The M2 builder shells out to the playtester CLI
+      # (packages/playtester/dist/cli.cjs) as its build gate, and the root
+      # `npm run build` does NOT build that workspace. The TS unit tests above
+      # already built @weld/engine (esbuild inlines it into the bundled CLI),
+      # so this one step is enough to give the backend tests the artifact.
+      - name: Build playtester (CLI for the API build gate)
+        run: npm run build -w @weld/playtester
 
       - name: API unit tests (pytest, hermetic SQLite)
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements-dev.txt
           cd backend && python -m pytest
+
+      - name: Build (sample game + web)
+        run: npm run build
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium

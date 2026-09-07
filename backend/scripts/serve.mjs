@@ -9,7 +9,7 @@
  * Usage: node scripts/serve.mjs <port> [--reload]
  */
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -26,6 +26,16 @@ if (sqliteMatch) {
   const dir = dirname(dbPath);
   if (dir && dir !== '.' && !existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
+  }
+  // Hermetic e2e (playwright.config §92/§93): the suite promises a FRESH
+  // database, but Playwright's `reuseExistingServer` reuses this process —
+  // and its DB file — across local runs, so the "No published games yet"
+  // assertion broke on any second run. When (and only when) ENVIRONMENT=test,
+  // drop the prior DB on startup so each launch of the test API is genuinely
+  // hermetic. The app re-creates + seeds the schema on boot. Production/dev
+  // never set ENVIRONMENT=test, so real data is never touched.
+  if (process.env.ENVIRONMENT === 'test' && existsSync(dbPath)) {
+    rmSync(dbPath, { force: true });
   }
 }
 

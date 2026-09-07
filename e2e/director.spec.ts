@@ -60,8 +60,11 @@ test.describe('WELD M1 Game Director', () => {
 
     // The generated Game Bible is real and on screen (schema version + goal).
     await expect(page.getByText(/Game Bible · v\d+/)).toBeVisible();
-    await expect(page.getByText(/Core loop/i)).toBeVisible();
-    await expect(page.getByText(/Controls/i)).toBeVisible();
+    // The Controls block has both a "Controls" section header and a lowercase
+    // "controls" binding row, so match the header exactly to avoid a strict-
+    // mode double-match on the case-insensitive substring.
+    await expect(page.getByText('Core loop', { exact: true })).toBeVisible();
+    await expect(page.getByText('Controls', { exact: true })).toBeVisible();
 
     // The edited spec is what got built: the Studio reflects the review edit.
     await expect(page.getByText(/Mushroom Run/i).first()).toBeVisible();

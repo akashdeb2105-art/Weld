@@ -12,6 +12,7 @@ import { CrewPanel } from '@/components/studio/CrewPanel';
 import { SpecPanel } from '@/components/studio/SpecPanel';
 import { PlaytestPanel } from '@/components/studio/PlaytestPanel';
 import { RegressionPanel } from '@/components/studio/RegressionPanel';
+import { PublishButton } from '@/components/studio/PublishButton';
 import { BibleEditPanel } from '@/components/studio/BibleEditPanel';
 
 /**
@@ -75,6 +76,7 @@ export function StudioShell({
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <PublishButton slug={project.slug} published={project.published} />
           <StatePill state={snap ? (snap.status === 'win' ? 'verified' : 'running') : 'neutral'}
             label={snap ? `game ${snap.status}` : 'idle'} />
           <Link

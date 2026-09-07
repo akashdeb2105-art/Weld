@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -22,6 +22,11 @@ class Project(Base):
     genre: Mapped[str] = mapped_column(String(60))
     status: Mapped[str] = mapped_column(String(40), default="draft")
     provenance: Mapped[str] = mapped_column(String(40), default="deterministic_sample")
+    # M5 Publish: a game is private until published, and publishing is gated on
+    # the Playtester proving every quality gate (blueprint: never ship a broken
+    # game). `published` flips only via the publish endpoint, never by hand.
+    published: Mapped[bool] = mapped_column(Boolean, default=False)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow

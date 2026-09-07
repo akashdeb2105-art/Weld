@@ -30,6 +30,8 @@ from ..schemas import (
     PlaytestReportOut,
     ProjectDetailOut,
     ProjectOut,
+    PublicGameOut,
+    PublishResponse,
     RecordBugRequest,
     RegressionCaseResult,
     RegressionSuiteOut,
@@ -281,6 +283,92 @@ def run_regressions(slug: str, session: Session = Depends(get_session)) -> Regre
         passing=passing,
         regressions=results,
         all_passing=passing == len(results),
+    )
+
+
+#  M5 Publish
+
+
+@router.post("/{slug}/publish", response_model=PublishResponse)
+def publish_project(slug: str, session: Session = Depends(get_session)) -> PublishResponse:
+    """Publish a game to its public, shareable URL (M5 "Ship it").
+
+    Honest gate: publishing runs the Playtester against the current bible and
+    refuses (409) unless EVERY quality gate passes. A game that boots broken,
+    has dead controls, or an unreachable win is never shipped. Re-publishing an
+    already-published game is idempotent and says so (`already`), not a fake
+    new ship.
+    """
+    project = _get_project_or_404(session, slug)
+    if project.game_bible is None:
+        raise HTTPException(status_code=404, detail=f"game bible for '{slug}' not found")
+
+    if project.published:
+        return PublishResponse(
+            project=ProjectOut.model_validate(project),
+            published=True,
+            already=True,
+            playtest_passed=True,
+            share_path=f"/play/{project.slug}",
+        )
+
+    try:
+        report = playtest.playtest_bible(project.game_bible.data)
+    except PlaytestUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except PlaytestError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    if not report.get("pass", False):
+        failing = [g.get("gate") for g in report.get("gates", []) if not g.get("pass", False)]
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Cannot publish: quality gates failing: "
+                + (", ".join(str(g) for g in failing) or "unknown")
+                + ". Fix the bugs and re-test first."
+            ),
+        )
+
+    project.published = True
+    project.published_at = datetime.now(timezone.utc)
+    project.jobs.append(
+        Job(
+            type="publish",
+            status="succeeded",
+            payload={"slug": project.slug},
+            result={"share_path": f"/play/{project.slug}", "playtest_passed": True},
+            finished_at=datetime.now(timezone.utc),
+        )
+    )
+    session.commit()
+    session.refresh(project)
+
+    return PublishResponse(
+        project=ProjectOut.model_validate(project),
+        published=True,
+        already=False,
+        playtest_passed=True,
+        share_path=f"/play/{project.slug}",
+    )
+
+
+@router.get("/{slug}/public", response_model=PublicGameOut)
+def get_public_game(slug: str, session: Session = Depends(get_session)) -> PublicGameOut:
+    """The public, published view of a game (M5).
+
+    404 unless the project is actually published, so an unpublished game is
+    never exposed through the share page.
+    """
+    project = _get_project_or_404(session, slug)
+    if not project.published:
+        raise HTTPException(status_code=404, detail=f"'{slug}' is not published")
+    return PublicGameOut(
+        slug=project.slug,
+        title=project.title,
+        summary=project.summary,
+        genre=project.genre,
+        published_at=project.published_at,
     )
 
 

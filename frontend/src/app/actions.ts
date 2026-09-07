@@ -189,3 +189,31 @@ export async function retestBug(slug: string, bugId: number): Promise<RetestBugR
   const body = (await res.json()) as { fixed_now: boolean; gate_passed: boolean; evidence: string };
   return { ok: true, fixed: body.fixed_now, evidence: body.evidence };
 }
+
+/*  M5 Publish  */
+
+export type PublishResult =
+  | { ok: true; already: boolean; sharePath: string }
+  | { ok: false; error: string };
+
+/**
+ * Publish a game to its public URL (M5 "Ship it"). The backend gate-guards it:
+ * the Playtester must prove every quality gate against the current bible or it
+ * refuses (409). A published game lives at /play/<slug> for anyone to play.
+ */
+export async function publishGame(slug: string): Promise<PublishResult> {
+  let res: Response;
+  try {
+    res = await fetch(`${base}/api/v1/projects/${slug}/publish`, {
+      method: 'POST',
+      cache: 'no-store',
+    });
+  } catch {
+    return { ok: false, error: 'API unreachable. Start the backend and try again.' };
+  }
+  if (!res.ok) {
+    return { ok: false, error: await readError(res, `Publish failed (${res.status}).`) };
+  }
+  const body = (await res.json()) as { already: boolean; share_path: string };
+  return { ok: true, already: body.already, sharePath: body.share_path };
+}

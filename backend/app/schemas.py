@@ -36,6 +36,8 @@ class ProjectOut(BaseModel):
     genre: str
     status: str
     provenance: str
+    published: bool
+    published_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
@@ -217,3 +219,35 @@ class RegressionSuiteOut(BaseModel):
     passing: int
     regressions: list[RegressionCaseResult]
     all_passing: bool
+
+
+#  M5 Publish
+
+
+class PublishResponse(BaseModel):
+    """The publish verdict (M5).
+
+    Publishing is gate-guarded: it only succeeds when the Playtester proves
+    every quality gate against the current bible. `already` is True when the
+    game was already published (idempotent re-publish, not a fake new ship).
+    """
+
+    project: ProjectOut
+    published: bool
+    already: bool
+    playtest_passed: bool
+    share_path: str  # the public URL path (e.g. /play/<slug>)
+
+
+class PublicGameOut(BaseModel):
+    """The public, published view of a game (M5).
+
+    Only what a share page needs -- no internal jobs/bugs. 404s unless the
+    project is actually published, so an unpublished game is never served.
+    """
+
+    slug: str
+    title: str
+    summary: str
+    genre: str
+    published_at: datetime | None

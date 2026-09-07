@@ -12,6 +12,8 @@ export interface Project {
   genre: string;
   status: string;
   provenance: string;
+  published: boolean;
+  published_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -88,6 +90,14 @@ export interface RegressionSuite {
   all_passing: boolean;
 }
 
+export interface PublicGame {
+  slug: string;
+  title: string;
+  summary: string;
+  genre: string;
+  published_at: string | null;
+}
+
 export const api = {
   health: () => get<{ status: string }>(`/health`),
   listProjects: () => get<Project[]>(`/api/v1/projects`),
@@ -96,4 +106,5 @@ export const api = {
   getPlaytest: (slug: string) => get<PlaytestReport>(`/api/v1/projects/${slug}/playtest`),
   listBugs: (slug: string) => get<Bug[]>(`/api/v1/projects/${slug}/bugs`),
   getRegressions: (slug: string) => get<RegressionSuite>(`/api/v1/projects/${slug}/regressions`),
+  getPublicGame: (slug: string) => get<PublicGame>(`/api/v1/projects/${slug}/public`),
 };

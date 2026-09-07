@@ -8,7 +8,13 @@
  */
 
 import Phaser from 'phaser';
-import type { GameBible } from '@weld/gamebible';
+import {
+  themeColors,
+  themeWords,
+  type GameBible,
+  type ThemeColors,
+  type ThemeWords,
+} from '@weld/gamebible';
 import {
   createInitialState,
   startGame,
@@ -21,24 +27,6 @@ import {
   type Rules,
 } from '../game/logic';
 import { emitToParent } from '../bridge';
-import { sampleBible } from '@weld/gamebible';
-
-const BIBLE: GameBible = sampleBible;
-
-const COLORS = {
-  bg: 0x0b0d12,
-  floor: 0x141823,
-  grid: 0x232b3d,
-  player: 0xf2f0ea,
-  playerTrim: 0xff5c1a,
-  scrap: 0x8fd3ff,
-  scrapCore: 0xff5c1a,
-  furnace: 0xff5c1a,
-  furnaceDark: 0xb53f0e,
-  pit: 0xff5c1a,
-  text: '#F2F0EA',
-  dim: '#9AA3B5',
-};
 
 interface SimRef {
   state: GameState;
@@ -64,9 +52,16 @@ export class GameScene extends Phaser.Scene {
   private overlayBody!: Phaser.GameObjects.Text;
   private lastEmit = 0;
 
-  constructor(sim: SimRef) {
+  private readonly bible: GameBible;
+  private readonly COLORS: ThemeColors;
+  private readonly WORDS: ThemeWords;
+
+  constructor(sim: SimRef, bible: GameBible) {
     super({ key: 'game' });
     this.sim = sim;
+    this.bible = bible;
+    this.COLORS = themeColors(bible);
+    this.WORDS = themeWords(bible);
   }
 
   create(): void {
@@ -93,7 +88,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private restart(): void {
-    const fresh = createInitialState(BIBLE.level, this.sim.rules);
+    const fresh = createInitialState(this.bible.level, this.sim.rules);
     this.sim.state = { ...fresh, status: 'playing' };
     this.syncPickups(true);
   }
@@ -169,22 +164,22 @@ export class GameScene extends Phaser.Scene {
   // ── Rendering ───────────────────────────────────────────────────────────
 
   private drawFloor(): void {
-    const { width, height } = BIBLE.level;
-    this.add.rectangle(width / 2, height / 2, width, height, COLORS.floor);
+    const { width, height } = this.bible.level;
+    this.add.rectangle(width / 2, height / 2, width, height, this.COLORS.floor);
     const g = this.add.graphics();
-    g.lineStyle(1, COLORS.grid, 0.5);
+    g.lineStyle(1, this.COLORS.grid, 0.5);
     for (let x = 0; x <= width; x += 60) g.lineBetween(x, 0, x, height);
     for (let y = 0; y <= height; y += 60) g.lineBetween(0, y, width, y);
     // Border.
-    g.lineStyle(3, COLORS.grid, 1);
+    g.lineStyle(3, this.COLORS.grid, 1);
     g.strokeRect(1, 1, width - 2, height - 2);
   }
 
   private drawDeliveryZone(): void {
-    const z = BIBLE.level.delivery_zone;
+    const z = this.bible.level.delivery_zone;
     this.add
-      .rectangle(z.x + z.width / 2, z.y + z.height / 2, z.width, z.height, COLORS.furnaceDark)
-      .setStrokeStyle(2, COLORS.furnace);
+      .rectangle(z.x + z.width / 2, z.y + z.height / 2, z.width, z.height, this.COLORS.goalDark)
+      .setStrokeStyle(2, this.COLORS.goal);
     this.add
       .text(z.x + z.width / 2, z.y + z.height / 2, z.label, {
         fontFamily: '"IBM Plex Mono", monospace',
@@ -194,22 +189,22 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setData('zoneLabel', true);
     // Glow strip above furnace mouth.
-    this.add.rectangle(z.x + z.width / 2, z.y + z.height + 4, z.width * 0.8, 6, COLORS.furnace, 0.7);
+    this.add.rectangle(z.x + z.width / 2, z.y + z.height + 4, z.width * 0.8, 6, this.COLORS.goal, 0.7);
   }
 
   private drawHazards(): void {
-    for (const h of BIBLE.level.hazards) {
-      this.add.circle(h.x, h.y, h.radius, COLORS.pit, 0.16);
-      this.add.circle(h.x, h.y, h.radius, 0x000000, 0).setStrokeStyle(2, COLORS.pit, 0.9);
-      this.add.circle(h.x, h.y, 5, COLORS.pit);
+    for (const h of this.bible.level.hazards) {
+      this.add.circle(h.x, h.y, h.radius, this.COLORS.hazard, 0.16);
+      this.add.circle(h.x, h.y, h.radius, 0x000000, 0).setStrokeStyle(2, this.COLORS.hazard, 0.9);
+      this.add.circle(h.x, h.y, 5, this.COLORS.hazard);
     }
   }
 
   private drawPickups(): void {
-    for (const p of BIBLE.level.pickups) {
+    for (const p of this.bible.level.pickups) {
       const c = this.add.container(p.x, p.y);
-      const body = this.add.rectangle(0, 0, 22, 22, COLORS.scrap).setRotation(Math.PI / 4);
-      const core = this.add.rectangle(0, 0, 9, 9, COLORS.scrapCore).setRotation(Math.PI / 4);
+      const body = this.add.rectangle(0, 0, 22, 22, this.COLORS.pickup).setRotation(Math.PI / 4);
+      const core = this.add.rectangle(0, 0, 9, 9, this.COLORS.pickupCore).setRotation(Math.PI / 4);
       c.add([body, core]);
       this.tweens.add({
         targets: c,
@@ -224,11 +219,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private drawPlayer(): void {
-    this.playerBody = this.add.rectangle(0, 0, 26, 26, COLORS.player);
-    const visor = this.add.rectangle(7, -4, 10, 8, COLORS.playerTrim);
+    this.playerBody = this.add.rectangle(0, 0, 26, 26, this.COLORS.player);
+    const visor = this.add.rectangle(7, -4, 10, 8, this.COLORS.playerTrim);
     const tread = this.add.rectangle(0, 15, 30, 6, 0x39415a);
     this.carriedSprite = this.add
-      .rectangle(0, -22, 14, 14, COLORS.scrap)
+      .rectangle(0, -22, 14, 14, this.COLORS.pickup)
       .setRotation(Math.PI / 4)
       .setVisible(false);
     this.playerSprite = this.add.container(
@@ -239,34 +234,34 @@ export class GameScene extends Phaser.Scene {
   }
 
   private drawHud(): void {
-    const mono = { fontFamily: '"IBM Plex Mono", monospace', fontSize: '16px', color: COLORS.text };
+    const mono = { fontFamily: '"IBM Plex Mono", monospace', fontSize: '16px', color: this.COLORS.text };
     this.hudScore = this.add.text(16, 12, '', mono).setScrollFactor(0);
-    this.hudDelivered = this.add.text(16, 34, '', { ...mono, color: COLORS.dim }).setScrollFactor(0);
+    this.hudDelivered = this.add.text(16, 34, '', { ...mono, color: this.COLORS.dim }).setScrollFactor(0);
     this.hudTimer = this.add
-      .text(BIBLE.level.width - 16, 12, '', { ...mono, fontSize: '22px' })
+      .text(this.bible.level.width - 16, 12, '', { ...mono, fontSize: '22px' })
       .setOrigin(1, 0)
       .setScrollFactor(0);
     this.hudLives = this.add
-      .text(BIBLE.level.width - 16, 42, '', { ...mono, color: '#FF5C1A' })
+      .text(this.bible.level.width - 16, 42, '', { ...mono, color: '#FF5C1A' })
       .setOrigin(1, 0)
       .setScrollFactor(0);
   }
 
   private buildOverlay(): void {
-    const { width, height } = BIBLE.level;
+    const { width, height } = this.bible.level;
     const shade = this.add.rectangle(width / 2, height / 2, width, height, 0x0b0d12, 0.82);
     this.overlayTitle = this.add
       .text(width / 2, height / 2 - 40, '', {
         fontFamily: '"Space Grotesk", sans-serif',
         fontSize: '42px',
-        color: COLORS.text,
+        color: this.COLORS.text,
       })
       .setOrigin(0.5);
     this.overlayBody = this.add
       .text(width / 2, height / 2 + 24, '', {
         fontFamily: '"IBM Plex Mono", monospace',
         fontSize: '15px',
-        color: COLORS.dim,
+        color: this.COLORS.dim,
         align: 'center',
       })
       .setOrigin(0.5);
@@ -280,19 +275,21 @@ export class GameScene extends Phaser.Scene {
     this.overlay.setVisible(show);
     if (!show) return;
 
+    const w = this.WORDS;
+    const target = this.sim.rules.winTarget;
     const map: Record<string, [string, string]> = {
       title: [
-        'SCRAP SPRINT',
-        'Deliver 5 scrap to the furnace before the timer burns out.\nWASD / arrows to move · avoid spark pits\nPress any key or click to start',
+        this.bible.game.title.toUpperCase(),
+        `${this.bible.win_condition.description}\nWASD / arrows to move · avoid ${w.hazard}\nPress any key or click to start`,
       ],
       paused: ['PAUSED', 'Esc / P to resume · R to restart'],
       game_over: [
-        'SHIFT OVER',
-        `${this.sim.state.loseReason === 'timer_zero' ? 'The timer burned out.' : 'Hull integrity lost.'}\nDelivered ${this.sim.state.delivered}/${this.sim.rules.winTarget} · Score ${this.sim.state.score}\nPress R to run it back`,
+        'RUN OVER',
+        `${this.sim.state.loseReason === 'timer_zero' ? 'The timer ran out.' : 'You ran out of health.'}\nDelivered ${this.sim.state.delivered}/${target} · Score ${this.sim.state.score}\nPress R to run it back`,
       ],
       win: [
         'DELIVERED',
-        `All ${this.sim.rules.winTarget} scrap in the furnace. Score ${this.sim.state.score}.\nPress R to play again`,
+        `All ${target} ${w.pickupPlural} delivered to the ${w.goal}. Score ${this.sim.state.score}.\nPress R to play again`,
       ],
     };
     const [title, body] = map[s] ?? ['', ''];
@@ -320,8 +317,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private flashFurnace(): void {
-    const z = BIBLE.level.delivery_zone;
-    const flash = this.add.circle(z.x + z.width / 2, z.y + z.height / 2, 10, COLORS.furnace, 0.9);
+    const z = this.bible.level.delivery_zone;
+    const flash = this.add.circle(z.x + z.width / 2, z.y + z.height / 2, 10, this.COLORS.goal, 0.9);
     this.tweens.add({
       targets: flash,
       radius: 90,
@@ -334,10 +331,10 @@ export class GameScene extends Phaser.Scene {
   private syncHud(): void {
     const s = this.sim.state;
     this.hudScore.setText(`SCORE ${s.score}`);
-    this.hudDelivered.setText(`SCRAP ${s.delivered}/${this.sim.rules.winTarget}`);
+    this.hudDelivered.setText(`${this.WORDS.pickupCaps} ${s.delivered}/${this.sim.rules.winTarget}`);
     this.hudTimer.setText(`${Math.ceil(s.timer).toString().padStart(2, '0')}s`);
-    this.hudLives.setText('HULL ' + '▮'.repeat(s.lives));
+    this.hudLives.setText('HP ' + '▮'.repeat(s.lives));
     if (s.timer <= 10 && s.status === 'playing') this.hudTimer.setColor('#FF5C1A');
-    else this.hudTimer.setColor(COLORS.text);
+    else this.hudTimer.setColor(this.COLORS.text);
   }
 }

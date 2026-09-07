@@ -193,4 +193,6 @@ export function isGameBible(input: unknown): input is GameBible {
 }
 
 export { sampleBible } from './sample';
+export { themeColors, themeWords } from './theme';
+export type { ThemeColors, ThemeWords } from './theme';
 export { default as scrapSprintBible } from './sample';

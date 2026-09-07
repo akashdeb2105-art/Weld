@@ -42,8 +42,15 @@ async function get<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+export interface GameBibleOut {
+  project_slug: string;
+  schema_version: number;
+  data: Record<string, unknown>;
+}
+
 export const api = {
   health: () => get<{ status: string }>(`/health`),
   listProjects: () => get<Project[]>(`/api/v1/projects`),
   getProject: (slug: string) => get<ProjectDetail>(`/api/v1/projects/${slug}`),
+  getGameBible: (slug: string) => get<GameBibleOut>(`/api/v1/projects/${slug}/gamebible`),
 };

@@ -1,14 +1,26 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * M1 e2e (blueprint: prompt → game bible). Drives the real Director loop the
- * way a user does: open the app, describe a game, and land in the Studio with
- * a real, schema-valid Game Bible rendered from the API.
+ * M1/M2 e2e (blueprint: describe → game bible → playable game). Drives the real
+ * loop the way a user does: open the app, describe a game, land in the Studio
+ * with a real, schema-valid Game Bible — and (M2) actually PLAY that game in
+ * the browser, booted from its own bible.
  *
  * Hermetic: the API is launched with LLM keys cleared (see playwright.config),
  * so the Director uses its deterministic offline composer — no network calls,
  * no secrets, and the result is honestly labeled "offline" rather than fake AI.
  */
+
+/** Shape of the read-only WELD bridge installed on window.__WELD__. */
+interface WeldBridge {
+  getGameStatus(): string;
+  getGameState(): {
+    status: string;
+    objectives: { target: number };
+  };
+}
+
+type WeldWindow = Window & { __WELD__?: WeldBridge };
 
 test.describe('WELD M1 Game Director', () => {
   test('describing a game generates a real Game Bible and opens it in the Studio', async ({
@@ -37,6 +49,24 @@ test.describe('WELD M1 Game Director', () => {
     // The theme was read from the prompt, not a canned template: the spec
     // reflects the mushrooms we asked to collect.
     await expect(page.getByText(/mushroom/i).first()).toBeVisible();
+
+    // ── M2: the game the user described is actually PLAYABLE in the Studio ──
+    // The iframe points at this project's own game (not the hardcoded sample).
+    const iframe = page.locator('iframe[title*="playable preview"]');
+    await expect(iframe).toBeVisible();
+    await expect(iframe).toHaveAttribute('src', /\/games\/[a-z0-9-]+$/);
+
+    // The game boots and installs its read-only bridge.
+    const frameHandle = await iframe.elementHandle();
+    const frame = await frameHandle!.contentFrame();
+    expect(frame).not.toBeNull();
+    await frame!.waitForFunction(() => (window as WeldWindow).__WELD__ !== undefined, null, {
+      timeout: 30_000,
+    });
+    const snap = await frame!.evaluate(() => (window as WeldWindow).__WELD__!.getGameState());
+    // Booted from the generated bible (deliver 5), rendering real state.
+    expect(snap.objectives.target).toBe(5);
+    expect(snap.status).toBe('title');
   });
 
   test('the Director refuses an empty/too-short prompt with a clear message', async ({

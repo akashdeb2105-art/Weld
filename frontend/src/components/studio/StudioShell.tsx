@@ -113,7 +113,7 @@ export function StudioShell({ project }: { project: ProjectDetail }) {
         <section className="blueprint-grid flex min-h-0 flex-col items-center justify-center overflow-auto p-4 sm:p-6">
           <div className="w-full max-w-4xl">
             <GameFrame
-              src="/games/scrap-sprint"
+              src={`/games/${project.slug}`}
               title={`${project.title} — playable preview`}
               onState={onState}
             />

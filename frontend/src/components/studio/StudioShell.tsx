@@ -11,6 +11,7 @@ import { GameFrame } from '@/components/GameFrame';
 import { CrewPanel } from '@/components/studio/CrewPanel';
 import { SpecPanel } from '@/components/studio/SpecPanel';
 import { PlaytestPanel } from '@/components/studio/PlaytestPanel';
+import { BibleEditPanel } from '@/components/studio/BibleEditPanel';
 
 /**
  * The Studio — the heart of the app (blueprint §25/§26). The game preview is
@@ -135,6 +136,7 @@ export function StudioShell({
         {/* RIGHT — crew + live state + spec */}
         <aside className="hidden min-h-0 overflow-auto border-l border-line/60 bg-ink-900/40 lg:block">
           <CrewPanel snap={snap} provenance={project.provenance} />
+          {bible && <BibleEditPanel slug={project.slug} bible={bible} />}
           <PlaytestPanel report={playtest} unavailable={playtestError} />
           <SpecPanel bible={bible} />
         </aside>

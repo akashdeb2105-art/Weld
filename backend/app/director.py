@@ -293,7 +293,11 @@ def compose_offline(prompt: str) -> DirectorResult:
             "Genre, collectible and hazard inferred from the prompt.",
         },
     }
-    validated = GameBibleDoc.model_validate(doc).model_dump()
+    # Validate with the Python mirror, but persist the full authored document:
+    # the mirror is a subset and model_dump() would drop fields the runtime and
+    # playtester need (e.g. level.delivery_zone.label).
+    GameBibleDoc.model_validate(doc)
+    validated = doc
     notes = [
         "offline_mode",
         "template_composed",
@@ -367,16 +371,21 @@ def _validate_doc(raw: dict, source: str) -> dict:
     next provider); an unsupported genre is a genuine user-facing error.
     """
     try:
-        doc = GameBibleDoc.model_validate(raw).model_dump()
+        GameBibleDoc.model_validate(raw)
     except Exception as exc:
         raise _InvalidModelOutput(f"{source} produced an invalid Game Bible: {exc}") from exc
-    if doc["game"]["genre"] not in SUPPORTED_GENRES:
+    genre = raw.get("game", {}).get("genre")
+    if genre not in SUPPORTED_GENRES:
         raise DirectorError(
-            f"The Director proposed an unsupported genre '{doc['game']['genre']}'. "
+            f"The Director proposed an unsupported genre '{genre}'. "
             f"M1 supports: {', '.join(sorted(SUPPORTED_GENRES))}."
         )
-    doc.setdefault("provenance", {})["origin"] = "ai_generated"
-    return doc
+    # Keep the FULL document, not a model_dump() of the Python mirror — the
+    # mirror is a subset and would silently drop fields the runtime/playtester
+    # need (e.g. level.delivery_zone.label), producing a bible that fails the
+    # strict contract. Validate with the mirror, persist the whole thing.
+    raw.setdefault("provenance", {})["origin"] = "ai_generated"
+    return raw
 
 
 async def _call_openai_compatible(prompt: str, *, api_key: str, base_url: str, model: str) -> dict:

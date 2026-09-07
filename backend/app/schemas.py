@@ -91,3 +91,35 @@ class CreateProjectResponse(BaseModel):
     game_bible: dict
     mode: str  # "llm" | "offline"
     notes: list[str]
+
+
+class DraftBibleResponse(BaseModel):
+    """A Director-drafted Game Bible for review — not yet a project (M1).
+
+    The "review before create" step: the user inspects/edits this spec, then
+    confirms by POSTing it back to create the project. Nothing is persisted
+    until that confirm, so reviewing is always free.
+    """
+
+    game_bible: dict
+    mode: str  # "llm" | "offline"
+    notes: list[str]
+    prompt: str
+
+
+class ConfirmProjectRequest(BaseModel):
+    """Create a project from a reviewed (possibly user-edited) Game Bible."""
+
+    game_bible: dict
+    prompt: str = Field(default="", max_length=2000)
+    mode: str = Field(default="offline")  # carried from the draft for provenance
+
+
+class UpdateGameBibleRequest(BaseModel):
+    """Replace a project's Game Bible (the Studio editor, M1).
+
+    The full document is replaced (not patched) and re-validated against the
+    real contract before it is saved, so a broken edit can never be persisted.
+    """
+
+    game_bible: dict

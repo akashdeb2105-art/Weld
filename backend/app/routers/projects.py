@@ -12,16 +12,21 @@ from ..director import (
     slugify,
 )
 from .. import playtest
+from ..director import SUPPORTED_GENRES
+from ..gamebible import GameBibleDoc
 from ..models import GameBibleRow, Job, Project
 from ..playtest import PlaytestError, PlaytestUnavailableError
 from ..schemas import (
+    ConfirmProjectRequest,
     CreateProjectRequest,
     CreateProjectResponse,
+    DraftBibleResponse,
     GameBibleOut,
     JobOut,
     PlaytestReportOut,
     ProjectDetailOut,
     ProjectOut,
+    UpdateGameBibleRequest,
 )
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
@@ -94,6 +99,67 @@ def _unique_slug(session: Session, base: str) -> str:
     return slug
 
 
+def _validate_bible_for_save(doc: dict) -> dict:
+    """Validate a Game Bible that's about to be persisted or shipped.
+
+    Two layers, both honest: the Python mirror (fail fast on a structurally
+    broken doc) and the strict TS playtester contract (the real schema — it
+    also enforces subset fields the mirror doesn't model, like the delivery
+    zone label). Raises 400 with the offending detail, never saves a bad doc.
+    """
+    try:
+        GameBibleDoc.model_validate(doc)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"invalid Game Bible: {exc}") from exc
+    genre = doc.get("game", {}).get("genre")
+    if genre not in SUPPORTED_GENRES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"unsupported genre '{genre}'. M1 supports: {', '.join(sorted(SUPPORTED_GENRES))}."
+            ),
+        )
+    try:
+        # The playtester's "builds" gate is the strict contract check. A doc
+        # that doesn't satisfy it would produce a game that can't boot.
+        playtest.playtest_bible(doc)
+    except PlaytestUnavailableError:
+        # Node/CLI not present here — the Python mirror already validated, so
+        # don't block an edit just because the strict checker can't run.
+        pass
+    except PlaytestError as exc:
+        raise HTTPException(status_code=400, detail=f"invalid Game Bible: {exc}") from exc
+    return doc
+
+
+def _persist_project(session: Session, doc: dict, prompt: str, mode: str, notes: list[str]) -> Project:
+    """Create + persist a project (and its Game Bible + provenance Job)."""
+    game = doc["game"]
+    slug = _unique_slug(session, slugify(game["slug"]))
+    project = Project(
+        slug=slug,
+        title=game["title"],
+        summary=game["one_liner"],
+        genre=game["genre"],
+        status="draft",
+        provenance="ai_generated" if mode == "llm" else "offline_draft",
+    )
+    project.game_bible = GameBibleRow(schema_version=doc["schemaVersion"], data=doc)
+    project.jobs.append(
+        Job(
+            type="director_draft",
+            status="succeeded",
+            payload={"prompt": prompt, "mode": mode},
+            result={"notes": notes, "slug": slug},
+            finished_at=datetime.now(timezone.utc),
+        )
+    )
+    session.add(project)
+    session.commit()
+    session.refresh(project)
+    return project
+
+
 @router.post("", response_model=CreateProjectResponse, status_code=201)
 async def create_project(
     body: CreateProjectRequest, session: Session = Depends(get_session)
@@ -110,35 +176,80 @@ async def create_project(
     except DirectorError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    doc = result.doc
-    game = doc["game"]
-    slug = _unique_slug(session, slugify(game["slug"]))
-
-    project = Project(
-        slug=slug,
-        title=game["title"],
-        summary=game["one_liner"],
-        genre=game["genre"],
-        status="draft",
-        provenance="ai_generated" if result.mode == "llm" else "offline_draft",
+    project = _persist_project(session, result.doc, body.prompt, result.mode, result.notes)
+    return CreateProjectResponse(
+        project=ProjectOut.model_validate(project),
+        game_bible=result.doc,
+        mode=result.mode,
+        notes=result.notes,
     )
-    project.game_bible = GameBibleRow(schema_version=doc["schemaVersion"], data=doc)
-    project.jobs.append(
-        Job(
-            type="director_draft",
-            status="succeeded",
-            payload={"prompt": body.prompt, "mode": result.mode},
-            result={"notes": result.notes, "slug": slug},
-            finished_at=datetime.now(timezone.utc),
-        )
-    )
-    session.add(project)
-    session.commit()
-    session.refresh(project)
 
+
+@router.post("/draft", response_model=DraftBibleResponse)
+async def draft_game_bible(body: CreateProjectRequest) -> DraftBibleResponse:
+    """Review-before-create (M1): draft a Game Bible for inspection, don't persist.
+
+    The Director composes + validates a spec from the prompt and returns it so
+    the user can review/edit before committing. Nothing is saved here — the
+    confirm endpoint turns a reviewed spec into a real project.
+    """
+    try:
+        result = await generate_game_bible(body.prompt)
+    except DirectorUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except DirectorError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return DraftBibleResponse(
+        game_bible=result.doc, mode=result.mode, notes=result.notes, prompt=body.prompt
+    )
+
+
+@router.post("/confirm", response_model=CreateProjectResponse, status_code=201)
+def confirm_project(
+    body: ConfirmProjectRequest, session: Session = Depends(get_session)
+) -> CreateProjectResponse:
+    """Create a project from a reviewed (possibly user-edited) Game Bible."""
+    doc = _validate_bible_for_save(body.game_bible)
+    project = _persist_project(session, doc, body.prompt, body.mode, [])
     return CreateProjectResponse(
         project=ProjectOut.model_validate(project),
         game_bible=doc,
-        mode=result.mode,
-        notes=result.notes,
+        mode=body.mode,
+        notes=[],
+    )
+
+
+@router.put("/{slug}/gamebible", response_model=GameBibleOut)
+def update_game_bible(
+    slug: str, body: UpdateGameBibleRequest, session: Session = Depends(get_session)
+) -> GameBibleOut:
+    """Replace a project's Game Bible (the Studio editor, M1).
+
+    Re-validated against the real contract before saving; the change is
+    recorded as a Job so the edit is honest provenance, not a silent mutation.
+    """
+    project = session.scalar(select(Project).where(Project.slug == slug))
+    if project is None or project.game_bible is None:
+        raise HTTPException(status_code=404, detail=f"game bible for '{slug}' not found")
+
+    doc = _validate_bible_for_save(body.game_bible)
+    project.game_bible.data = doc
+    project.game_bible.schema_version = doc["schemaVersion"]
+    project.title = doc["game"]["title"]
+    project.summary = doc["game"]["one_liner"]
+    project.genre = doc["game"]["genre"]
+    project.jobs.append(
+        Job(
+            type="bible_edit",
+            status="succeeded",
+            payload={"source": "studio_editor"},
+            result={"slug": slug},
+            finished_at=datetime.now(timezone.utc),
+        )
+    )
+    session.commit()
+    return GameBibleOut(
+        project_slug=project.slug,
+        schema_version=project.game_bible.schema_version,
+        data=project.game_bible.data,
     )

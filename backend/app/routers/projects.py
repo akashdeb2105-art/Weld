@@ -11,12 +11,15 @@ from ..director import (
     generate_game_bible,
     slugify,
 )
-from .. import playtest
+from .. import builder, playtest
+from ..builder import BuildError, BuildUnavailableError
 from ..director import SUPPORTED_GENRES
 from ..gamebible import GameBibleDoc
 from ..models import GameBibleRow, Job, Project
 from ..playtest import PlaytestError, PlaytestUnavailableError
 from ..schemas import (
+    BuildManifestOut,
+    BuildResponse,
     ConfirmProjectRequest,
     CreateProjectRequest,
     CreateProjectResponse,
@@ -89,6 +92,34 @@ def get_playtest(slug: str, session: Session = Depends(get_session)) -> Playtest
     return PlaytestReportOut.model_validate(report)
 
 
+@router.post("/{slug}/build", response_model=BuildResponse)
+def build_project(slug: str, session: Session = Depends(get_session)) -> BuildResponse:
+    """Run the Game Builder (M2) on a project's bible and return the manifest.
+
+    "Compilation is not completion" — this proves the bible satisfies the strict
+    builds contract and records the artifact as a Job. Rebuilding an unchanged
+    bible reuses the prior content-addressed artifact (and says so).
+    """
+    project = session.scalar(select(Project).where(Project.slug == slug))
+    if project is None or project.game_bible is None:
+        raise HTTPException(status_code=404, detail=f"game bible for '{slug}' not found")
+
+    doc = project.game_bible.data
+    job = None
+    try:
+        job = _run_build(session, project, doc)
+    except BuildUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except BuildError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return BuildResponse(
+        project=ProjectOut.model_validate(project),
+        manifest=BuildManifestOut.model_validate(job.result),
+        reused=bool(job.result.get("reused", False)),
+    )
+
+
 def _unique_slug(session: Session, base: str) -> str:
     """Guarantee a free slug by suffixing -2, -3, … if the base is taken."""
     slug = base
@@ -130,6 +161,73 @@ def _validate_bible_for_save(doc: dict) -> dict:
     except PlaytestError as exc:
         raise HTTPException(status_code=400, detail=f"invalid Game Bible: {exc}") from exc
     return doc
+
+
+def _run_build(session: Session, project: Project, doc: dict) -> Job:
+    """Run the Game Builder (M2) on a project's bible and record the Job.
+
+    Compiles the bible into a deterministic, content-addressed manifest. If the
+    bible is unchanged since the last successful build, the prior artifact is
+    reused (honest: we say so) rather than pretending to rebuild. On success the
+    project status moves draft/built; a failed build records the error honestly.
+    """
+    try:
+        manifest = builder.build_manifest(doc)
+    except BuildUnavailableError:
+        raise
+    except BuildError as exc:
+        project.jobs.append(
+            Job(
+                type="build",
+                status="failed",
+                payload={"slug": project.slug},
+                result={},
+                error=str(exc),
+                finished_at=datetime.now(timezone.utc),
+            )
+        )
+        project.status = "draft"
+        session.commit()
+        raise
+
+    # Reuse the prior artifact when the bible content is unchanged.
+    prior = next(
+        (
+            j
+            for j in sorted(project.jobs, key=lambda j: j.id, reverse=True)
+            if j.type == "build" and j.status == "succeeded"
+        ),
+        None,
+    )
+    reused = bool(prior and prior.result.get("content_hash") == manifest["content_hash"])
+
+    project.jobs.append(
+        Job(
+            type="build",
+            status="succeeded",
+            payload={"slug": project.slug},
+            result={**manifest, "reused": reused},
+            finished_at=datetime.now(timezone.utc),
+        )
+    )
+    project.status = "built"
+    session.commit()
+    session.refresh(project)
+    return project.jobs[-1]
+
+
+def _build_or_fail(session: Session, project: Project, doc: dict) -> None:
+    """Run the Builder, translating its failures into honest HTTP errors.
+
+    A build that can't run here (no Node/playtester CLI) is a 503; a bible that
+    fails the strict contract is a 400. Either way the failure Job is recorded.
+    """
+    try:
+        _run_build(session, project, doc)
+    except BuildUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except BuildError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def _persist_project(session: Session, doc: dict, prompt: str, mode: str, notes: list[str]) -> Project:
@@ -177,6 +275,8 @@ async def create_project(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     project = _persist_project(session, result.doc, body.prompt, result.mode, result.notes)
+    # M2: build immediately so the game is provably playable, not just drafted.
+    _build_or_fail(session, project, result.doc)
     return CreateProjectResponse(
         project=ProjectOut.model_validate(project),
         game_bible=result.doc,
@@ -211,6 +311,8 @@ def confirm_project(
     """Create a project from a reviewed (possibly user-edited) Game Bible."""
     doc = _validate_bible_for_save(body.game_bible)
     project = _persist_project(session, doc, body.prompt, body.mode, [])
+    # M2: the reviewed spec is compiled into a playable artifact right away.
+    _build_or_fail(session, project, doc)
     return CreateProjectResponse(
         project=ProjectOut.model_validate(project),
         game_bible=doc,
@@ -248,6 +350,14 @@ def update_game_bible(
         )
     )
     session.commit()
+    # M2: an edit invalidates the prior build  recompile so the Studio's build
+    # badge reflects the edited bible, not a stale artifact. If the build can't
+    # run here, we still save the (valid) edit and leave status honestly draft.
+    try:
+        _run_build(session, project, doc)
+    except (BuildUnavailableError, BuildError):
+        project.status = "draft"
+        session.commit()
     return GameBibleOut(
         project_slug=project.slug,
         schema_version=project.game_bible.schema_version,

@@ -123,3 +123,34 @@ class UpdateGameBibleRequest(BaseModel):
     """
 
     game_bible: dict
+
+
+#  M2 Game Builder 
+
+
+class BuildManifestOut(BaseModel):
+    """The Game Builder's artifact (M2): what the bible compiled to.
+
+    Deterministic and content-addressed: the same bible always yields the same
+    `content_hash` / `artifact_id`, so a rebuild after an edit is detectable.
+    """
+
+    artifact_id: str
+    content_hash: str
+    runtime: dict  # {"id": ..., "version": ...}
+    schema_version: int
+    slug: str | None
+    title: str | None
+    genre: str | None
+    armed: dict  # win/lose/controls the runtime will enforce
+    level: dict
+    palette: list[str]
+    evidence: str
+
+
+class BuildResponse(BaseModel):
+    """Result of running the Builder: the manifest plus the project's status."""
+
+    project: ProjectOut
+    manifest: BuildManifestOut
+    reused: bool  # True when the bible was unchanged and the prior build was reused

@@ -75,7 +75,8 @@ def test_create_project_offline_happy_path(client: TestClient) -> None:
     body = r.json()
     assert body["mode"] == "offline"
     assert body["project"]["provenance"] == "offline_draft"
-    assert body["project"]["status"] == "draft"
+    # M2: a created project is built immediately  provably playable, not draft.
+    assert body["project"]["status"] == "built"
     slug = body["project"]["slug"]
     assert slug
 
@@ -86,6 +87,11 @@ def test_create_project_offline_happy_path(client: TestClient) -> None:
     assert d["game_bible"]["game"]["slug"] == body["game_bible"]["game"]["slug"]
     # A real director job was recorded (not faked).
     assert any(j["type"] == "director_draft" and j["status"] == "succeeded" for j in d["jobs"])
+    # M2: a build job was recorded too, with a content-addressed manifest.
+    build = next(j for j in d["jobs"] if j["type"] == "build")
+    assert build["status"] == "succeeded"
+    assert build["result"]["content_hash"]
+    assert build["result"]["runtime"]["id"]
 
 
 def test_create_project_slug_uniqueness(client: TestClient) -> None:

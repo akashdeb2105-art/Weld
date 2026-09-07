@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@weld/engine": "*",
     "@weld/gamebible": "*",
     "phaser": "^3.87.0"
   },

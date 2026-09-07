@@ -6,8 +6,8 @@
  * read it via Playwright. `emit()` broadcasts snapshots to a parent frame.
  */
 
-import type { Rules, GameState } from './game/logic';
-import { snapshotState } from './game/logic';
+import type { Rules, GameState } from '@weld/engine';
+import { snapshotState } from '@weld/engine';
 
 export interface WeldBridge {
   getGameState: () => ReturnType<typeof snapshotState>;

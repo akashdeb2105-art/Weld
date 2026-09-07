@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { parseGameBible, sampleBible, type GameBible } from '@weld/gamebible';
-import { createGame } from './game/logic';
+import { createGame } from '@weld/engine';
 import { installWeldBridge, type WeldBridge } from './bridge';
 import { GameScene } from './scenes/GameScene';
 

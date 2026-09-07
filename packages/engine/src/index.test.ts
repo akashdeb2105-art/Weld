@@ -12,7 +12,7 @@ import {
   update,
   INPUT_IDLE,
   type InputState,
-} from './logic.js';
+} from './index.js';
 
 const bible = parseGameBible(sampleBible);
 

@@ -1,7 +1,7 @@
 /**
  * GameScene — the Phaser presentation layer for Scrap Sprint.
  *
- * Rendering only. Every rule lives in the pure logic core (../game/logic);
+ * Rendering only. Every rule lives in the pure logic core (@weld/engine);
  * this scene reads state, feeds intents, and draws. All visuals are drawn
  * procedurally (blueprint §71: SVG/procedural assets for V1, no external
  * asset fetching).
@@ -25,7 +25,7 @@ import {
   type GameState,
   type InputState,
   type Rules,
-} from '../game/logic';
+} from '@weld/engine';
 import { emitToParent } from '../bridge';
 
 interface SimRef {

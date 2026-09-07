@@ -1,0 +1,29 @@
+{
+  "name": "@weld/engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The pure, deterministic WELD game engine: movement, pickups, delivery, hazards, win/lose, restart. Engine-free and renderer-agnostic so the Phaser bundle and the Playtester both run the exact same rules.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "pretest": "npm run build",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@weld/gamebible": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

@@ -251,3 +251,17 @@ class PublicGameOut(BaseModel):
     summary: str
     genre: str
     published_at: datetime | None
+
+
+class RemixResponse(BaseModel):
+    """The result of remixing a published game (M6 Community/Remix).
+
+    Remixing clones a *published* game into a brand-new, private draft the
+    user can edit freely. Honest provenance: the copy is marked
+    `remix`, points back at its source, starts unpublished, and never touches
+    the original. `studio_path` is where the new draft opens.
+    """
+
+    project: ProjectOut
+    remixed_from: str
+    studio_path: str  # where the new editable draft opens (e.g. /app/studio/<slug>)

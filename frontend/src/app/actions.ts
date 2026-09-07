@@ -217,3 +217,39 @@ export async function publishGame(slug: string): Promise<PublishResult> {
   const body = (await res.json()) as { already: boolean; share_path: string };
   return { ok: true, already: body.already, sharePath: body.share_path };
 }
+
+export type RemixResult =
+  | { ok: true; slug: string; studioPath: string; remixedFrom: string }
+  | { ok: false; error: string };
+
+/**
+ * Remix a published game into a new editable draft (M6 Community/Remix). The
+ * backend clones the published game into a private copy (provenance `remix`,
+ * pointing back at the source) and returns where it opens in the Studio. The
+ * original is never touched.
+ */
+export async function remixGame(slug: string): Promise<RemixResult> {
+  let res: Response;
+  try {
+    res = await fetch(`${base}/api/v1/projects/${slug}/remix`, {
+      method: 'POST',
+      cache: 'no-store',
+    });
+  } catch {
+    return { ok: false, error: 'API unreachable. Start the backend and try again.' };
+  }
+  if (!res.ok) {
+    return { ok: false, error: await readError(res, `Remix failed (${res.status}).`) };
+  }
+  const body = (await res.json()) as {
+    project: { slug: string };
+    remixed_from: string;
+    studio_path: string;
+  };
+  return {
+    ok: true,
+    slug: body.project.slug,
+    studioPath: body.studio_path,
+    remixedFrom: body.remixed_from,
+  };
+}

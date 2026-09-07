@@ -175,7 +175,7 @@ export const GameBibleSchema = z
     quality_requirements: QualityRequirementsSchema,
     level: LevelDefinitionSchema,
     provenance: z.object({
-      origin: z.enum(['deterministic_sample', 'ai_generated', 'human_authored']),
+      origin: z.enum(['deterministic_sample', 'ai_generated', 'human_authored', 'remixed']),
       notes: z.string().optional(),
     }),
   })

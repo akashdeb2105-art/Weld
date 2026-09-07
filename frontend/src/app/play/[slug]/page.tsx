@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { api, type PublicGame } from '@/lib/api';
 import { Wordmark } from '@/components/Wordmark';
+import { RemixButton } from '@/components/play/RemixButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,8 +27,11 @@ export default async function PlayPage({ params }: { params: Promise<{ slug: str
         <Link href="/" aria-label="WELD home">
           <Wordmark />
         </Link>
-        <span className="rounded bg-emerald-500/15 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-emerald-300">
-          Published
+        <span className="flex items-center gap-3">
+          <RemixButton slug={game.slug} />
+          <span className="rounded bg-emerald-500/15 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-emerald-300">
+            Published
+          </span>
         </span>
       </header>
 

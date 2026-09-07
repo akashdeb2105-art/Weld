@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import copy
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -35,6 +36,7 @@ from ..schemas import (
     RecordBugRequest,
     RegressionCaseResult,
     RegressionSuiteOut,
+    RemixResponse,
     RetestResponse,
     UpdateGameBibleRequest,
 )
@@ -369,6 +371,70 @@ def get_public_game(slug: str, session: Session = Depends(get_session)) -> Publi
         summary=project.summary,
         genre=project.genre,
         published_at=project.published_at,
+    )
+
+
+@router.post("/{slug}/remix", response_model=RemixResponse, status_code=201)
+def remix_project(slug: str, session: Session = Depends(get_session)) -> RemixResponse:
+    """Remix a published game into a new editable draft (M6 Community/Remix).
+
+    Honest by construction:
+    - You can only remix a *published* game (409 otherwise) -- the public thing
+      a player just played is the thing being cloned.
+    - The clone is a brand-new, private, unpublished draft with its own slug,
+      marked provenance `remix` and pointing back at its source. It never
+      mutates the original.
+    - The bible is deep-copied with the project's slug/name rewritten to the
+      new slug so the copy is internally consistent (no fake identity).
+    """
+    source = _get_project_or_404(session, slug)
+    if not source.published:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot remix '{slug}': only published games can be remixed.",
+        )
+    if source.game_bible is None:
+        raise HTTPException(status_code=404, detail=f"game bible for '{slug}' not found")
+
+    new_slug = _unique_slug(session, f"{source.slug}-remix")
+
+    bible = copy.deepcopy(source.game_bible.data)
+    game = bible.setdefault("game", {})
+    game["slug"] = new_slug
+    if isinstance(game.get("title"), str):
+        game["title"] = f"{source.title} (Remix)"
+    # Honest provenance: mark the copy a remix and point back at its source.
+    prov = bible.setdefault("provenance", {})
+    prov["origin"] = "remixed"
+    prov["notes"] = f"Remixed from '{source.slug}'."
+
+    project = Project(
+        slug=new_slug,
+        title=f"{source.title} (Remix)",
+        summary=source.summary,
+        genre=source.genre,
+        status="draft",
+        provenance="remix",
+        published=False,
+    )
+    project.game_bible = GameBibleRow(schema_version=source.game_bible.schema_version, data=bible)
+    project.jobs.append(
+        Job(
+            type="remix",
+            status="succeeded",
+            payload={"source_slug": source.slug},
+            result={"new_slug": new_slug, "remixed_from": source.slug},
+            finished_at=datetime.now(timezone.utc),
+        )
+    )
+    session.add(project)
+    session.commit()
+    session.refresh(project)
+
+    return RemixResponse(
+        project=ProjectOut.model_validate(project),
+        remixed_from=source.slug,
+        studio_path=f"/app/studio/{new_slug}",
     )
 
 

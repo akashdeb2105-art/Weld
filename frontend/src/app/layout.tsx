@@ -7,6 +7,7 @@ const sans = Inter({ subsets: ['latin'], variable: '--font-sans' });
 const mono = IBM_Plex_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-mono' });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.WELD_SITE_URL ?? 'http://localhost:3000'),
   title: {
     default: 'WELD — AI Game Studio',
     template: '%s · WELD',

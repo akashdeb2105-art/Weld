@@ -1,10 +1,50 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
 import { api, type PublicGame } from '@/lib/api';
 import { Wordmark } from '@/components/Wordmark';
 import { RemixButton } from '@/components/play/RemixButton';
 
 export const dynamic = 'force-dynamic';
+
+async function fetchGame(slug: string): Promise<PublicGame | null> {
+  try {
+    return await api.getPublicGame(slug);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Open Graph metadata for a published game (M6 share cards). Honest: the
+ * description is the game's real summary, and 404/unpublished games get a
+ * generic card (the page itself 404s anyway).
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const game = await fetchGame(slug);
+  if (!game) {
+    return { title: 'Game not found' };
+  }
+  return {
+    title: game.title,
+    description: game.summary,
+    openGraph: {
+      title: game.title,
+      description: game.summary,
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: game.title,
+      description: game.summary,
+    },
+  };
+}
 
 /**
  * The public share page (M5 "Ship it"). Anyone with the link can play the
@@ -14,10 +54,8 @@ export const dynamic = 'force-dynamic';
 export default async function PlayPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
-  let game: PublicGame;
-  try {
-    game = await api.getPublicGame(slug);
-  } catch {
+  const game = await fetchGame(slug);
+  if (!game) {
     notFound();
   }
 

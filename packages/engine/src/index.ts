@@ -58,7 +58,11 @@ export interface GameState {
 }
 
 export interface Rules {
+  /** The win condition armed from the bible (M2: not always deliver_count). */
+  winType: GameBible['win_condition']['type'];
   winTarget: number;
+  /** The lose conditions armed from the bible (M2: not always timer/health). */
+  loseConditions: ReadonlyArray<GameBible['lose_conditions'][number]>;
   startLives: number;
   timerSeconds: number;
   playerSpeed: number;
@@ -72,7 +76,9 @@ export interface Rules {
 export function rulesFromBible(bible: GameBible): Rules {
   const level = bible.level;
   return {
+    winType: bible.win_condition.type,
     winTarget: bible.win_condition.target,
+    loseConditions: bible.lose_conditions,
     startLives: bible.player.health,
     timerSeconds: level.timer_seconds,
     playerSpeed: level.player_speed,
@@ -160,7 +166,13 @@ export function update(state: GameState, rules: Rules, input: InputState, dt: nu
   // ── Timer: counts down only, never below zero ──────────────────────────
   next.timer = Math.max(0, +(state.timer - dt).toFixed(4));
   if (next.timer === 0) {
-    return endGame(next, 'timer_zero');
+    // survive_time wins when the clock runs out; otherwise timer_zero loses.
+    if (rules.winType === 'survive_time') {
+      return winGame(next);
+    }
+    if (rules.loseConditions.includes('timer_zero')) {
+      return endGame(next, 'timer_zero');
+    }
   }
 
   // ── Invulnerability decay ───────────────────────────────────────────────
@@ -197,10 +209,15 @@ export function update(state: GameState, rules: Rules, input: InputState, dt: nu
     next.carried = false;
     next.delivered += 1;
     next.score += rules.deliveryScore;
-    if (next.delivered >= rules.winTarget) {
-      next.status = 'win';
-      next.player.alive = true;
-      return next;
+    // M2: honor the armed win type  deliver_count, score_threshold, or
+    // clear_level (clear the level by delivering every pickup).
+    const pickupsTotal = next.pickups.length;
+    const won =
+      (rules.winType === 'deliver_count' && next.delivered >= rules.winTarget) ||
+      (rules.winType === 'score_threshold' && next.score >= rules.winTarget) ||
+      (rules.winType === 'clear_level' && next.delivered >= pickupsTotal);
+    if (won) {
+      return winGame(next);
     }
   }
 
@@ -212,13 +229,21 @@ export function update(state: GameState, rules: Rules, input: InputState, dt: nu
     if (pit) {
       next.lives = Math.max(0, next.lives - 1);
       next.player.invulnerableFor = rules.hitInvulnerabilitySeconds;
-      if (next.lives === 0) {
+      if (next.lives === 0 && rules.loseConditions.includes('health_zero')) {
         return endGame(next, 'health_zero');
       }
     }
   }
 
   return next;
+}
+
+function winGame(state: GameState): GameState {
+  return {
+    ...state,
+    status: 'win',
+    player: { ...state.player, alive: true },
+  };
 }
 
 function endGame(state: GameState, reason: 'timer_zero' | 'health_zero'): GameState {
@@ -251,10 +276,11 @@ export function snapshotState(state: GameState, rules: Rules) {
       alive: state.player.alive,
     },
     objectives: {
-      type: 'deliver_scrap',
+      type: rules.winType,
       delivered: state.delivered,
+      score: state.score,
       target: rules.winTarget,
-      complete: state.delivered >= rules.winTarget,
+      complete: state.status === 'win',
     },
     pickupsRemaining: state.pickups.filter((p) => !p.collected).length,
   };

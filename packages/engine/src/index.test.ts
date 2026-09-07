@@ -201,3 +201,131 @@ describe('Scrap Sprint logic core', () => {
     expect(restarted.pickups.every((p) => !p.collected)).toBe(true);
   });
 });
+
+//  M2: the engine honors every win/lose type the GameBible schema allows,
+//  not just the sample's deliver_count / timer_zero. 
+
+import type { GameBible } from '@weld/gamebible';
+
+function bibleWith(overrides: {
+  win?: GameBible['win_condition'];
+  lose?: GameBible['lose_conditions'];
+}): GameBible {
+  return parseGameBible({
+    ...sampleBible,
+    win_condition: overrides.win ?? sampleBible.win_condition,
+    lose_conditions: overrides.lose ?? sampleBible.lose_conditions,
+  });
+}
+
+describe('armed win/lose conditions (M2)', () => {
+  it('score_threshold wins at the score target', () => {
+    const b = bibleWith({
+      win: { type: 'score_threshold', target: 200, description: 'Reach 200 pts' },
+    });
+    const { state, rules } = createGame(b);
+    expect(rules.winType).toBe('score_threshold');
+    let s = startGame(state);
+    // Deliver two pickups (2 * deliveryScore = 200) at the zone center.
+    const zx = rules.deliveryZone.x + rules.deliveryZone.width / 2;
+    const zy = rules.deliveryZone.y + rules.deliveryZone.height / 2;
+    const dt = 1 / 60;
+    const goTo = (tx: number, ty: number) => {
+      while (s.status === 'playing') {
+        const dx = tx - s.player.x;
+        const dy = ty - s.player.y;
+        if (Math.abs(dx) < 2 && Math.abs(dy) < 2) break;
+        s = update(s, rules, { up: dy < 0, down: dy > 0, left: dx < 0, right: dx > 0 }, dt);
+      }
+    };
+    // First pickup + deliver, then second + deliver.
+    const p0 = b.level.pickups[0];
+    goTo(p0.x, p0.y);
+    goTo(zx, zy);
+    const p1 = b.level.pickups[1];
+    goTo(p1.x, p1.y);
+    goTo(zx, zy);
+    expect(s.score).toBeGreaterThanOrEqual(200);
+    expect(s.status).toBe('win');
+  });
+
+  it('survive_time wins when the timer runs out', () => {
+    const b = bibleWith({
+      win: { type: 'survive_time', target: 90, description: 'Survive the shift' },
+    });
+    const { state, rules } = createGame(b);
+    expect(rules.winType).toBe('survive_time');
+    let s = startGame(state);
+    // Idle in place (no hazards at spawn) until the clock hits zero.
+    for (let i = 0; i < 90 * 60 + 5 && s.status === 'playing'; i++) {
+      s = update(s, rules, INPUT_IDLE, 1 / 60);
+    }
+    expect(s.timer).toBe(0);
+    expect(s.status).toBe('win');
+  });
+
+  it('clear_level wins by delivering every pickup', () => {
+    // A clean two-pickup level (no hazards on the route) so "clear every
+    // pickup" is exercised directly, not gated by the sample's hazard layout.
+    const b = parseGameBible({
+      ...sampleBible,
+      win_condition: { type: 'clear_level', target: 1, description: 'Clear the level' },
+      level: {
+        ...sampleBible.level,
+        hazards: [],
+        pickups: [
+          { id: 'p-1', kind: 'scrap', x: 200, y: 300 },
+          { id: 'p-2', kind: 'scrap', x: 760, y: 300 },
+        ],
+      },
+    });
+    const { state, rules } = createGame(b);
+    expect(rules.winType).toBe('clear_level');
+    let s = startGame(state);
+    const zone = rules.deliveryZone;
+    const zx = zone.x + zone.width / 2;
+    const zy = zone.y + zone.height / 2;
+    const dt = 1 / 60;
+    const goTo = (tx: number, ty: number) => {
+      while (s.status === 'playing') {
+        const dx = tx - s.player.x;
+        const dy = ty - s.player.y;
+        if (Math.abs(dx) < 2 && Math.abs(dy) < 2) break;
+        s = update(s, rules, { up: dy < 0, down: dy > 0, left: dx < 0, right: dx > 0 }, dt);
+      }
+    };
+    for (const p of b.level.pickups) {
+      if (s.status !== 'playing') break;
+      goTo(p.x, p.y);
+      goTo(zx, zy);
+    }
+    expect(s.delivered).toBe(b.level.pickups.length);
+    expect(s.status).toBe('win');
+  });
+
+  it('timer_zero does NOT end a run when it is not an armed lose condition', () => {
+    const b = bibleWith({ lose: ['health_zero'] });
+    const { state, rules } = createGame(b);
+    let s = startGame(state);
+    for (let i = 0; i < 90 * 60 + 5 && s.status === 'playing'; i++) {
+      s = update(s, rules, INPUT_IDLE, 1 / 60);
+    }
+    expect(s.timer).toBe(0);
+    expect(s.status).toBe('playing'); // timer ran out but it is not armed
+  });
+
+  it('health_zero does NOT end a run when it is not an armed lose condition', () => {
+    const b = bibleWith({ lose: ['timer_zero'] });
+    const { state, rules } = createGame(b);
+    let s = startGame(state);
+    const pit = b.level.hazards[0];
+    // Stand in the pit until lives are exhausted.
+    for (let i = 0; i < 60 * 60 && s.status === 'playing' && s.lives > 0; i++) {
+      s = update(s, rules, { ...INPUT_IDLE }, 1 / 60);
+      // teleport onto the pit each step so hits land once invulnerability lapses
+      s = { ...s, player: { ...s.player, x: pit.x, y: pit.y } };
+    }
+    expect(s.lives).toBe(0);
+    expect(s.status).toBe('playing'); // out of lives but health_zero not armed
+  });
+});

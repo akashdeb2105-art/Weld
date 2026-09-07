@@ -49,6 +49,32 @@ def list_projects(session: Session = Depends(get_session)) -> list[Project]:
     return list(session.scalars(select(Project).order_by(Project.created_at)))
 
 
+@router.get("/published", response_model=list[PublicGameOut])
+def list_published(session: Session = Depends(get_session)) -> list[PublicGameOut]:
+    """The public gallery feed (M6 Community): every published game.
+
+    Honest by construction: only projects with `published = True` appear, so a
+    private draft is never surfaced. Ordered newest-published-first. This route
+    must be declared before `/{slug}` so the literal path isn't swallowed by
+    the slug matcher.
+    """
+    projects = session.scalars(
+        select(Project)
+        .where(Project.published.is_(True))
+        .order_by(Project.published_at.desc().nulls_last(), Project.created_at.desc())
+    ).all()
+    return [
+        PublicGameOut(
+            slug=p.slug,
+            title=p.title,
+            summary=p.summary,
+            genre=p.genre,
+            published_at=p.published_at,
+        )
+        for p in projects
+    ]
+
+
 @router.get("/{slug}", response_model=ProjectDetailOut)
 def get_project(slug: str, session: Session = Depends(get_session)) -> Project:
     project = session.scalar(select(Project).where(Project.slug == slug))

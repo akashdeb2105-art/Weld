@@ -107,4 +107,5 @@ export const api = {
   listBugs: (slug: string) => get<Bug[]>(`/api/v1/projects/${slug}/bugs`),
   getRegressions: (slug: string) => get<RegressionSuite>(`/api/v1/projects/${slug}/regressions`),
   getPublicGame: (slug: string) => get<PublicGame>(`/api/v1/projects/${slug}/public`),
+  listPublished: () => get<PublicGame[]>(`/api/v1/projects/published`),
 };

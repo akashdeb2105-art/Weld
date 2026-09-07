@@ -29,6 +29,12 @@ export default function LandingPage() {
               Quality gates
             </a>
             <Link
+              href="/gallery"
+              className="hidden font-mono text-xs uppercase tracking-wider text-steel hover:text-paper sm:inline"
+            >
+              Gallery
+            </Link>
+            <Link
               href="/app"
               className="rounded-md border border-spark/60 bg-spark px-4 py-2 font-mono text-xs font-medium uppercase tracking-wider text-ink-950 transition-colors hover:bg-spark-soft"
             >

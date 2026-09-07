@@ -27,6 +27,7 @@ import {
   type Rules,
 } from '@weld/engine';
 import { emitToParent } from '../bridge';
+import { SoundSynth, type SynthContext } from '../sound';
 
 interface SimRef {
   state: GameState;
@@ -51,6 +52,7 @@ export class GameScene extends Phaser.Scene {
   private overlayTitle!: Phaser.GameObjects.Text;
   private overlayBody!: Phaser.GameObjects.Text;
   private lastEmit = 0;
+  private sfx!: SoundSynth;
 
   private readonly bible: GameBible;
   private readonly COLORS: ThemeColors;
@@ -83,7 +85,9 @@ export class GameScene extends Phaser.Scene {
 
   private tryStart(): void {
     if (this.sim.state.status === 'title') {
+      this.ensureAudio();
       this.sim.state = startGame(this.sim.state);
+      this.sfx.play('start');
     }
   }
 
@@ -91,6 +95,29 @@ export class GameScene extends Phaser.Scene {
     const fresh = createInitialState(this.bible.level, this.sim.rules);
     this.sim.state = { ...fresh, status: 'playing' };
     this.syncPickups(true);
+    this.ensureAudio();
+    this.sfx.play('start');
+  }
+
+  /** Lazily build the synth on the first user gesture. Browsers block Web
+   * Audio before any interaction, so creating the context inside the start/
+   * restart handler (a real gesture) lets the sound actually play. The synth
+   * stays a no-op if the bible opts out (`audio.enabled: false`) or no audio
+   * device exists. */
+  private ensureAudio(): void {
+    if (this.sfx) return;
+    let ctx: SynthContext | null;
+    try {
+      const phaserCtx = (
+        this.sound as unknown as { context?: SynthContext } | undefined
+      )?.context;
+      ctx =
+        phaserCtx ??
+        (typeof AudioContext !== 'undefined' ? new AudioContext() : null);
+    } catch {
+      ctx = null;
+    }
+    this.sfx = new SoundSynth(this.bible.audio.enabled, ctx);
   }
 
   update(_time: number, deltaMs: number): void {
@@ -141,9 +168,16 @@ export class GameScene extends Phaser.Scene {
       const deliveredNow = after.delivered > before.delivered;
       const hitNow = after.lives < before.lives;
       this.sim.state = after;
-      if (deliveredNow) this.flashFurnace();
-      if (hitNow) this.cameras.main.shake(120, 0.006);
+      if (deliveredNow) {
+        this.flashFurnace();
+        this.sfx?.play('deliver');
+      }
+      if (hitNow) {
+        this.cameras.main.shake(120, 0.006);
+        this.sfx?.play('hit');
+      }
       if (before.status === 'playing' && after.status !== 'playing') {
+        this.sfx?.play(after.status === 'win' ? 'win' : 'lose');
         this.syncOverlay();
       }
       this.syncPickups();

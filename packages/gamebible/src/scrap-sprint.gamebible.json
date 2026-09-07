@@ -54,8 +54,8 @@
     "notes": "Blueprint-grid foundry floor, spark-orange furnace, hard industrial shapes. No neon gradients."
   },
   "audio": {
-    "enabled": false,
-    "style": "none (M0 — no audio assets yet)"
+    "enabled": true,
+    "style": "synthesized (procedural WebAudio cues, no assets)"
   },
   "quality_requirements": {
     "start_successfully": true,

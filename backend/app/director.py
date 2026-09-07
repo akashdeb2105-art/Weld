@@ -259,7 +259,12 @@ def compose_offline(prompt: str) -> DirectorResult:
             "palette": DEFAULT_PALETTE,
             "notes": "Composed by the offline Director; refine in the Studio.",
         },
-        "audio": {"enabled": False, "style": "none"},
+        "audio": {
+            "enabled": True,
+            # Synthesized WebAudio cues (no assets): every generated game ships
+            # with real sound on real events. The runtime honors this flag.
+            "style": "synthesized (procedural WebAudio cues, no assets)",
+        },
         "quality_requirements": {
             "start_successfully": True,
             "restartable": True,
@@ -326,7 +331,7 @@ _JSON_SHAPE = """{
   "systems": ["movement", "collisions", "hazards", "scoring", "timer",
     "pickups", "delivery", "restart", "pause"],
   "visual_direction": {"theme": "...", "palette": ["#0B0D12", "#1B2130", "#FF5C1A", "#8FD3FF", "#F2F0EA"], "notes": "..."},
-  "audio": {"enabled": false, "style": "none"},
+  "audio": {"enabled": true, "style": "synthesized (procedural WebAudio cues, no assets)"},
   "quality_requirements": {"start_successfully": true, "restartable": true,
     "win_reachable": true, "lose_reachable": true, "zero_console_errors": true},
   "level": {"name": "...", "width": 960, "height": 540, "timer_seconds": 90,

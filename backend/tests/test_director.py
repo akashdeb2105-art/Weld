@@ -57,6 +57,22 @@ def test_offline_composer_produces_valid_bible() -> None:
     assert "mushrooms" in doc.core_loop[0]
 
 
+def test_offline_composer_enables_synthesized_sound() -> None:
+    """A generated game must ship with real sound, not silence (M6).
+
+    The runtime synthesizes WebAudio cues from any bible whose audio is
+    enabled  no assets required. So the Director has no honest reason to
+    generate a silent game. This pins that the bible a player gets has sound
+    on, and that it stays schema-valid.
+    """
+    result = compose_offline("Collect glowing mushrooms and avoid acid pools")
+    doc = GameBibleDoc.model_validate(result.doc)
+    assert doc.audio["enabled"] is True
+    assert "synthesized" in doc.audio["style"]
+    # The raw dict the Director emits carries the same flag the runtime reads.
+    assert result.doc["audio"]["enabled"] is True
+
+
 def test_offline_composer_rejects_too_short_prompt() -> None:
     try:
         compose_offline("hi")

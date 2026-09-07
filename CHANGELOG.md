@@ -4,6 +4,54 @@ All notable changes to WELD are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to milestone-based development (M0, M1, …).
 
+## [0.2.0] — M1–M6 · 2026-09-08
+
+The full product loop, end to end: describe a game, have the Director draft
+its bible, build it, break it with real playtests, fix and regression-guard
+bugs, then publish it to a discoverable gallery where anyone can play and
+remix it — with every release gate proven by evidence, never asserted.
+
+### Added
+
+- **M1 Game Director + Game Bible** — turn a plain-language prompt into a
+  reviewable, editable Game Bible. Real LLM (provider fallback across
+  Fireworks / Gemini / OpenRouter) with a deterministic offline composer when
+  no key is present, so the loop is honest and never fakes progress.
+  Review-before-create flow, honest Director status, Studio Bible editor,
+  e2e coverage of the describe → draft → build loop.
+- **M2 Game Builder** — deterministic build step + build endpoint; every
+  project is served as a playable game from its own Game Bible. The engine
+  arms all schema-allowed win/lose conditions.
+- **M3 Real Playtester** (`@weld/playtester`) — engine-free, deterministic
+  harness that drives the same pure engine the renderer uses and proves the
+  quality gates one by one with structured evidence. "Break it" surfaces the
+  verdict in the Studio.
+- **M4 Bug → Fix → Regression** — bugs become regression tests.
+- **M5 Live Studio + Publish** — gate-guarded publish (the button runs the
+  real Playtester; nothing ships unless every gate passes) + a public share
+  page at `/play/<slug>`.
+- **M6 Visual QA gate** — prove the game actually renders.
+- **M6 Community / Remix** — clone a published game into your own private,
+  editable, unpublished draft; public gallery of every published game; social
+  share cards with a real OG image; Versions tab in the Studio shows the real
+  remix lineage (parent + children, from recorded remix jobs).
+- **M6 sound layer** — generated games ship with synthesized audio cues that
+  realize the bible's audio intent; the Director enables synthesized audio.
+- **Release gate: zero console errors** — Studio console-error watcher +
+  e2e assertion; **release gate: performance acceptable** — a machine-
+  independent cost model (no wall-clock), closing the final release gate.
+- **Cinematic landing polish** — scroll-reveal + hero entrance,
+  reduced-motion safe.
+
+### Fixed
+
+- **E2E hermeticity** — `serve.mjs` drops the e2e SQLite DB on startup only
+  when `ENVIRONMENT=test`, so local reruns are genuinely fresh (previously a
+  reused DB broke `publish.spec`'s "No published games yet" on the second
+  run). Proven: the suite passes back-to-back with no manual reset.
+- Studio project nav (Source / Tests / Issues) actually navigates; assorted
+  CI + e2e strict-mode hardening.
+
 ## [0.1.0] — M0 · 2026-09-06
 
 The foundation milestone: real product surface, real playable sample, honest
@@ -59,4 +107,5 @@ states, zero faked AI.
   with no same-origin access to the parent app.
 - `window.__WELD__` is read-only — structured state only, no code execution.
 
+[0.2.0]: https://github.com/akashdeb2105-art/Weld/compare/v0.1.0...main
 [0.1.0]: https://github.com/akashdeb2105-art/Weld/releases/tag/v0.1.0

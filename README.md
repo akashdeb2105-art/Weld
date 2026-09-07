@@ -16,19 +16,24 @@ Prompt → Game Bible → Build → Play → Test → Bug → Fix → Regression
 
 ---
 
-## Status: M1 — Game Director
+## Status: M1–M6 — the full product loop is live
 
-M1 adds the first AI role: the **Game Director** turns a plain-language prompt
-into a validated **Game Bible** (the M0 contract), and the Studio shows it with
-honest provenance. M0's foundation is below. Everything visible is real;
-nothing is faked — when no LLM key is set, the Director uses a clearly-labeled
-deterministic offline composer instead of pretending to be a model.
+Describe a game and the **Game Director** drafts a validated **Game Bible**;
+the **Builder** turns it into a playable game; the **Playtester** breaks it
+with real, deterministic evidence; bugs become regression tests; and a
+gate-guarded **Publish** ships it to a public gallery where anyone can play
+and **remix** it. Everything visible is real; nothing is faked — when no LLM
+key is set, the Director uses a clearly-labeled deterministic offline composer
+instead of pretending to be a model.
 
-| M1 piece | What it is |
-| -------- | ---------- |
-| **Game Director** | `backend/app/director.py` — prompt → schema-validated GameBible. LLM-backed (OpenAI-compatible) with an honest offline fallback. |
-| **Create project** | `POST /api/v1/projects` + a real "New game" prompt form on `/app` (server action; browser never sees keys). |
-| **Provenance** | Generated projects labeled `ai_generated` (LLM) or `offline_draft`; crew panel marks Director/Designer **live** for them. |
+| Milestone | What it is |
+| --------- | ---------- |
+| **M1 Game Director + Game Bible** | `backend/app/director.py` — prompt → schema-validated GameBible. LLM-backed (OpenAI-compatible, provider fallback) with an honest offline fallback. Review-before-create + Studio Bible editor. |
+| **M2 Game Builder** | Deterministic build step + endpoint; every project is served as a playable game from its own Game Bible. |
+| **M3 Real Playtester** | `@weld/playtester` — engine-free deterministic harness proving the quality gates one by one; "Break it" in the Studio. |
+| **M4 Bug → Fix → Regression** | Bugs become regression tests. |
+| **M5 Live Studio + Publish** | Gate-guarded publish (runs the real Playtester; nothing ships unless every gate passes) + public share page at `/play/<slug>`. |
+| **M6 Community / Remix + QA** | Public gallery, remix into a private editable draft, social share cards, Versions/remix lineage, Visual QA + zero-console-errors + performance release gates, synthesized audio. |
 
 ### M0 foundation
 
@@ -43,17 +48,16 @@ deterministic offline composer instead of pretending to be a model.
 | **Database** | PostgreSQL + Alembic migrations (SQLite for hermetic tests) |
 | **Local dev** | Docker Compose: web + api + postgres |
 
-Not here yet (by design): the AI Builder/Playtester, real event streaming,
-publish, accounts. The deterministic sample stands in — clearly labeled — until
-the Builder lands in M2. See the
+The one blueprint item not yet built is a real **accounts / multi-user
+Community** model (the blueprint names "Community" but specifies no auth, so
+the shipped community surface is the shareable, remixable gallery). See the
 [blueprint](WELD_AI_GAME_STUDIO_MASTER_BLUEPRINT.md).
 
 ### Game Director configuration
 
 Set `LLM_API_KEY` (OpenAI-compatible) to enable the real LLM Director — see
 `.env.example`. With no key, `POST /api/v1/projects` uses the deterministic
-offline composer and labels the result `offline_draft`. M1 supports
-`top_down_arcade`, `platformer`, and `dodge_survival`.
+offline composer and labels the result `offline_draft`.
 
 ## Quickstart
 
@@ -104,9 +108,11 @@ frontend/         Next.js — public site + Studio (everything the user sees)
 backend/          FastAPI — projects, GameBibles, jobs, the Game Director
 packages/
   gamebible/      GameBible schema + canonical fixture (shared contract)
+  engine/         Shared pure game engine (the runtime every game runs on)
+  playtester/     Deterministic harness that proves the quality gates
   sample-game/    Scrap Sprint — deterministic Phaser 3 game
 docs/             architecture, local dev, gamebible spec
-e2e/              Playwright smoke tests
+e2e/              Playwright tests (smoke, director, publish)
 docker-compose.yml
 ```
 

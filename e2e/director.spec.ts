@@ -42,7 +42,13 @@ test.describe('WELD M1 Game Director', () => {
 
     // The Director drafts the spec and shows it for review, honestly labeled.
     await expect(page.getByText(/Review the Game Bible/i)).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText(/AI Director \(offline\)/i)).toBeVisible();
+    // Scope to the review panel: the projects list behind it also shows a
+    // "AI Director (offline)" provenance card once an offline draft exists, and
+    // a loose page-wide text match would resolve to two nodes and fail
+    // Playwright strict mode (surfaced once the remix lineage made prior
+    // drafts visible). The badge lives in the review header next to the title.
+    const reviewHeader = page.locator('div', { has: page.getByText(/Review the Game Bible/i) }).last();
+    await expect(reviewHeader.getByText(/AI Director \(offline\)/i)).toBeVisible();
 
     // The theme was read from the prompt: the drafted title reflects mushrooms.
     await expect(page.getByLabel(/^Title$/i)).toHaveValue(/mushroom/i);

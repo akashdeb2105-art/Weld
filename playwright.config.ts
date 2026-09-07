@@ -53,7 +53,9 @@ export default defineConfig({
       cwd: 'frontend',
       port: WEB_PORT,
       reuseExistingServer: !process.env.CI,
-      timeout: 300_000,
+      // Generous: this step runs a full cold `next build` before `next start`,
+      // which on a fresh CI runner (no .next cache) can exceed 5 minutes.
+      timeout: 600_000,
       env: {
         WELD_API_URL: `http://localhost:${API_PORT}`,
         NODE_ENV: 'production',

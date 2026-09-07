@@ -97,6 +97,14 @@ class GameBibleDoc(BaseModel):
 
 
 def load_sample_game_bible(path: Path | None = None) -> dict[str, Any]:
+    """Return the canonical sample GameBible, validated, exactly as authored.
+
+    The Pydantic `GameBibleDoc` is a *subset* mirror used to fail fast on a
+    broken fixture. Returning the validated raw dict (not `model_dump()`) keeps
+    fields the mirror doesn't model — e.g. `level.delivery_zone.label` — intact
+    for consumers that need the full contract (the TS playtester, the Studio).
+    """
     p = path or FIXTURE_PATH
     raw = json.loads(p.read_text(encoding="utf-8"))
-    return GameBibleDoc.model_validate(raw).model_dump()
+    GameBibleDoc.model_validate(raw)  # fail fast if the fixture is broken
+    return raw

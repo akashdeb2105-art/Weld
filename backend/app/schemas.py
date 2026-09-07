@@ -60,6 +60,24 @@ class GameBibleOut(BaseModel):
     data: dict
 
 
+class PlaytestGateOut(BaseModel):
+    """One quality-gate verdict from the Playtester (M3)."""
+
+    gate: str
+    passed: bool = Field(validation_alias="pass")
+    evidence: str
+    detail: dict | None = None
+
+
+class PlaytestReportOut(BaseModel):
+    """The full evidence-backed playtest report for a project's GameBible."""
+
+    slug: str
+    passed: bool = Field(validation_alias="pass")
+    gates: list[PlaytestGateOut]
+    simulated_seconds: float = Field(validation_alias="simulatedSeconds")
+
+
 class CreateProjectRequest(BaseModel):
     """The Game Director's input (M1): a plain-language game idea."""
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import Link from 'next/link';
-import type { ProjectDetail } from '@/lib/api';
+import type { PlaytestReport, ProjectDetail } from '@/lib/api';
 import type { GameStateSnapshot, PipelineStage } from '@/lib/types';
 import { Wordmark } from '@/components/Wordmark';
 import { StatePill } from '@/components/StatePill';
@@ -10,6 +10,7 @@ import { Playhead } from '@/components/Playhead';
 import { GameFrame } from '@/components/GameFrame';
 import { CrewPanel } from '@/components/studio/CrewPanel';
 import { SpecPanel } from '@/components/studio/SpecPanel';
+import { PlaytestPanel } from '@/components/studio/PlaytestPanel';
 
 /**
  * The Studio — the heart of the app (blueprint §25/§26). The game preview is
@@ -19,7 +20,15 @@ import { SpecPanel } from '@/components/studio/SpecPanel';
  * Honest M0: the game is live and real; the crew panel shows which roles are
  * real vs. arriving, and never fabricates AI activity.
  */
-export function StudioShell({ project }: { project: ProjectDetail }) {
+export function StudioShell({
+  project,
+  playtest,
+  playtestError,
+}: {
+  project: ProjectDetail;
+  playtest: PlaytestReport | null;
+  playtestError: string | null;
+}) {
   const [snap, setSnap] = useState<GameStateSnapshot | null>(null);
   const onState = useCallback((s: GameStateSnapshot) => setSnap(s), []);
 
@@ -126,6 +135,7 @@ export function StudioShell({ project }: { project: ProjectDetail }) {
         {/* RIGHT — crew + live state + spec */}
         <aside className="hidden min-h-0 overflow-auto border-l border-line/60 bg-ink-900/40 lg:block">
           <CrewPanel snap={snap} provenance={project.provenance} />
+          <PlaytestPanel report={playtest} unavailable={playtestError} />
           <SpecPanel bible={bible} />
         </aside>
       </div>

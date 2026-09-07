@@ -48,9 +48,24 @@ export interface GameBibleOut {
   data: Record<string, unknown>;
 }
 
+export interface PlaytestGate {
+  gate: string;
+  passed: boolean;
+  evidence: string;
+  detail: Record<string, unknown> | null;
+}
+
+export interface PlaytestReport {
+  slug: string;
+  passed: boolean;
+  gates: PlaytestGate[];
+  simulated_seconds: number;
+}
+
 export const api = {
   health: () => get<{ status: string }>(`/health`),
   listProjects: () => get<Project[]>(`/api/v1/projects`),
   getProject: (slug: string) => get<ProjectDetail>(`/api/v1/projects/${slug}`),
   getGameBible: (slug: string) => get<GameBibleOut>(`/api/v1/projects/${slug}/gamebible`),
+  getPlaytest: (slug: string) => get<PlaytestReport>(`/api/v1/projects/${slug}/playtest`),
 };

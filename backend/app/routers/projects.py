@@ -11,12 +11,15 @@ from ..director import (
     generate_game_bible,
     slugify,
 )
+from .. import playtest
 from ..models import GameBibleRow, Job, Project
+from ..playtest import PlaytestError, PlaytestUnavailableError
 from ..schemas import (
     CreateProjectRequest,
     CreateProjectResponse,
     GameBibleOut,
     JobOut,
+    PlaytestReportOut,
     ProjectDetailOut,
     ProjectOut,
 )
@@ -57,6 +60,28 @@ def list_jobs(slug: str, session: Session = Depends(get_session)) -> list[Job]:
     return list(
         session.scalars(select(Job).where(Job.project_id == project.id).order_by(Job.created_at))
     )
+
+
+@router.get("/{slug}/playtest", response_model=PlaytestReportOut)
+def get_playtest(slug: str, session: Session = Depends(get_session)) -> PlaytestReportOut:
+    """Run the deterministic Playtester (M3) against the project's GameBible.
+
+    Returns an evidence-backed verdict per quality gate (builds, boots,
+    controls, win reachable, lose reachable, restart). 503 when the playtester
+    can't run in this environment; 500 when it ran but produced no report.
+    """
+    project = session.scalar(select(Project).where(Project.slug == slug))
+    if project is None or project.game_bible is None:
+        raise HTTPException(status_code=404, detail=f"game bible for '{slug}' not found")
+
+    try:
+        report = playtest.playtest_bible(project.game_bible.data)
+    except PlaytestUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except PlaytestError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return PlaytestReportOut.model_validate(report)
 
 
 def _unique_slug(session: Session, base: str) -> str:

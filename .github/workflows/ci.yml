@@ -57,10 +57,35 @@ jobs:
           pip install -r backend/requirements-dev.txt
           cd backend && python -m pytest
 
+      # Cache the Next.js incremental build output so unchanged code reuses
+      # prior compile artifacts (webpack cache, SWC) instead of tracing the
+      # standalone output from scratch — that trace dominated the cold runs.
+      # Keyed on package-lock + all source; any change to either rebuilds.
+      - name: Cache Next.js build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            frontend/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-${{ hashFiles('frontend/**', 'packages/**') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-
+
+      # Cache the Playwright browser binaries (~400MB download) keyed on the
+      # installed Playwright version; only re-downloads when the version bumps.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
       - name: Build (sample game + web)
         run: npm run build
 
       - name: Install Playwright browsers
+        # `--with-deps` re-installs OS libs; skip it on a cache hit (they're
+        # already present) and only fill in missing browser binaries.
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: E2E smoke

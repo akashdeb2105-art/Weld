@@ -66,4 +66,29 @@ describe('WELD Playtester (M3)', () => {
     expect(text).toMatch(/PASS\s+win_reachable/);
     expect(text).toMatch(/PASS\s+lose_reachable/);
   });
+
+  // M6 Visual QA
+  it('proves the sample scene renders non-blank content', () => {
+    const report = playtest(bible);
+    const renders = gate(report, 'renders');
+    expect(renders.pass).toBe(true);
+    expect(renders.detail?.['renderables']).toBeGreaterThan(0);
+    expect(renders.detail?.['paletteColors']).toBeGreaterThan(0);
+    expect(renders.detail?.['playerInBounds']).toBe(true);
+  });
+
+  it('fails Visual QA honestly when the player spawns off-canvas', () => {
+    // Broken render: the player spawns outside the level bounds, so nothing
+    // visible is drawn where the player should be. (Schema-valid: spawn is a
+    // free point; only the bounds are constrained.)
+    const offscreen: GameBible = parseGameBible({
+      ...JSON.parse(JSON.stringify(bible)),
+      level: { ...bible.level, player_spawn: { x: -500, y: -500 } },
+    });
+    const report = playtest(offscreen);
+    const renders = gate(report, 'renders');
+    expect(renders.pass).toBe(false);
+    expect(renders.evidence).toMatch(/out of bounds/);
+    expect(renders.detail?.['playerInBounds']).toBe(false);
+  });
 });

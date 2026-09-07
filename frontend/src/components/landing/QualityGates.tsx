@@ -6,6 +6,7 @@ const GATES = [
   ['Win reachable', 'the goal is achievable'],
   ['Lose reachable', 'the failure path works'],
   ['Restart', 'state resets to initial'],
+  ['Renders', 'the scene draws non-blank content'],
   ['Console clean', 'zero uncaught errors'],
   ['Regressions pass', 'fixed bugs stay fixed'],
 ] as const;

@@ -1,4 +1,4 @@
-"""M3 playtest endpoint tests — hermetic (subprocess is mocked, no Node needed)."""
+﻿"""M3 playtest endpoint tests â€” hermetic (subprocess is mocked, no Node needed)."""
 
 import json
 import subprocess
@@ -20,6 +20,12 @@ SAMPLE_REPORT = {
         {"gate": "win_reachable", "pass": True, "evidence": "delivered 5/5", "detail": {"score": 500}},
         {"gate": "lose_reachable", "pass": True, "evidence": "idle 90s -> game_over/timer_zero"},
         {"gate": "restart_works", "pass": True, "evidence": "fresh run restored"},
+        {
+            "gate": "renders",
+            "pass": True,
+            "evidence": "scene renders: 960x540 canvas, player visible, 5 pickups + 2 hazards, 5 palette colors",
+            "detail": {"renderables": 7, "paletteColors": 5, "playerInBounds": True},
+        },
     ],
 }
 
@@ -41,7 +47,7 @@ def test_playtest_endpoint_returns_report(client: TestClient, monkeypatch: pytes
     assert body["slug"] == "scrap-sprint"
     assert body["passed"] is True
     assert body["simulated_seconds"] == 0
-    assert len(body["gates"]) == 6
+    assert len(body["gates"]) == 7
     gates = {g["gate"]: g for g in body["gates"]}
     assert gates["win_reachable"]["passed"] is True
     assert gates["win_reachable"]["detail"]["score"] == 500
@@ -82,7 +88,7 @@ def test_playtest_bible_parses_cli_output(monkeypatch: pytest.MonkeyPatch, tmp_p
     )
     report = playtest_bible({"game": {"slug": "scrap-sprint"}})
     assert report["pass"] is True
-    assert len(report["gates"]) == 6
+    assert len(report["gates"]) == 7
 
 
 def test_playtest_bible_raises_on_bad_exit(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -97,7 +103,7 @@ def test_playtest_bible_end_to_end(client: TestClient) -> None:
     """Run the REAL playtester CLI against the seeded sample bible.
 
     Skipped when Node or the built CLI isn't present (e.g. a Python-only CI
-    job) — the mocked tests above still pin the bridge's contract. When it
+    job) â€” the mocked tests above still pin the bridge's contract. When it
     does run, it proves the full seam: DB bible -> node cli.cjs -> report.
     """
     from app.gamebible import load_sample_game_bible  # same doc the seed persists
@@ -117,5 +123,6 @@ def test_playtest_bible_end_to_end(client: TestClient) -> None:
         "win_reachable",
         "lose_reachable",
         "restart_works",
+        "renders",
     }
     assert all(gates.values())

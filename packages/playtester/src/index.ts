@@ -28,7 +28,8 @@ export type GateName =
   | 'controls_work'
   | 'win_reachable'
   | 'lose_reachable'
-  | 'restart_works';
+  | 'restart_works'
+  | 'renders';
 
 export interface GateResult {
   gate: GateName;
@@ -200,6 +201,51 @@ function gateBoots(bible: GameBible): GateResult {
   };
 }
 
+/**
+ * M6 Visual QA — "a screenshot is not a playtest", but the game must still
+ * provably RENDER something. This gate proves the scene the renderer draws
+ * from has real, non-blank content: a sane canvas, a visible player, real
+ * entities to draw, a usable delivery zone, and a non-degenerate palette.
+ * Deterministic: it inspects the engine's initial render state, not pixels.
+ */
+function gateRenders(bible: GameBible): GateResult {
+  const { state, rules } = createGame(bible);
+  const { width, height } = rules.bounds;
+  const fails: string[] = [];
+
+  if (!(width > 0 && height > 0)) fails.push(`degenerate bounds ${width}x${height}`);
+  if (!state.player.alive) fails.push('player not alive at boot');
+  const px = state.player.x;
+  const py = state.player.y;
+  if (!(px >= 0 && px <= width && py >= 0 && py <= height)) {
+    fails.push(`player (${Math.round(px)},${Math.round(py)}) out of bounds`);
+  }
+  const renderables = state.pickups.length + state.hazards.length;
+  if (renderables === 0) fails.push('no entities to render (blank scene)');
+  const dz = rules.deliveryZone;
+  if (!(dz.width > 0 && dz.height > 0)) fails.push('delivery zone has no area');
+  const palette = (bible.visual_direction?.palette ?? []).filter(
+    (c) => typeof c === 'string' && c.trim(),
+  );
+  if (palette.length === 0) fails.push('empty palette');
+
+  const ok = fails.length === 0;
+  return {
+    gate: 'renders',
+    pass: ok,
+    evidence: ok
+      ? `scene renders: ${width}x${height} canvas, player visible at (${Math.round(px)},${Math.round(py)}), ${state.pickups.length} pickups + ${state.hazards.length} hazards, ${palette.length} palette colors`
+      : `blank/broken render: ${fails.join('; ')}`,
+    detail: {
+      width,
+      height,
+      renderables,
+      paletteColors: palette.length,
+      playerInBounds: px >= 0 && px <= width && py >= 0 && py <= height,
+    },
+  };
+}
+
 function gateControls(bible: GameBible): GateResult {
   const { rules } = createGame(bible);
   let s = startGame(createGame(bible).state);
@@ -355,6 +401,7 @@ export function playtest(bible: GameBible): PlaytestReport {
   gates.push(gateWinReachable(bible));
   gates.push(gateLoseReachable(bible));
   gates.push(gateRestart(bible));
+  gates.push(gateRenders(bible)); // M6 Visual QA
 
   const simulatedSeconds = gates
     .map((g) => (typeof g.detail?.['tick'] === 'number' ? (g.detail['tick'] as number) : 0))

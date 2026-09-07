@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { act, render, screen, fireEvent, within } from '@testing-library/react';
 
 // jsdom lacks matchMedia; stub it for the Playhead's reduced-motion check.
 beforeAll(() => {
@@ -58,8 +58,8 @@ describe('StudioShell project nav', () => {
     return withTabs!;
   }
 
-  it('every nav tab is a real, clickable control (no more "soon" placeholders)', () => {
-    render(
+  it('every nav tab is a real, clickable control (no more "soon" placeholders)', async () => {
+    const view = render(
       <StudioShell project={project} playtest={playtest} playtestError={null} bugs={[]} regressions={regressions} />,
     );
     // The M5-era "lands in a later milestone" placeholders are gone — the crew
@@ -70,10 +70,15 @@ describe('StudioShell project nav', () => {
       const el = within(nav).getByRole('button', { name: label });
       expect(el).not.toBeDisabled();
     }
+    // Flush effects/queue and tear down inside act so no concurrent-scheduled
+    // update outlives the test (CI hit "window is not defined" after teardown).
+    await act(async () => {
+      view.unmount();
+    });
   });
 
-  it('switches the right rail to real content for each tab', () => {
-    render(
+  it('switches the right rail to real content for each tab', async () => {
+    const view = render(
       <StudioShell project={project} playtest={playtest} playtestError={null} bugs={[]} regressions={regressions} />,
     );
     const nav = tabBar();
@@ -91,5 +96,8 @@ describe('StudioShell project nav', () => {
     fireEvent.click(within(nav).getByRole('button', { name: 'Overview' }));
     expect(screen.queryByLabelText('Source')).toBeNull();
     expect(screen.getAllByLabelText('Edit Game Bible').length).toBeGreaterThan(0);
+    await act(async () => {
+      view.unmount();
+    });
   });
 });

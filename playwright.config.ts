@@ -37,6 +37,15 @@ export default defineConfig({
         DATABASE_URL: `sqlite+pysqlite:///${process.cwd().replace(/\\/g, '/')}/e2e/.tmp/weld-e2e.db`,
         ENVIRONMENT: 'test',
         WELD_API_PORT: String(API_PORT),
+        // Hermetic: never read a developer's real .env (it may hold live LLM
+        // keys) and never call a paid/rate-limited model in e2e. Point settings
+        // at a nonexistent env file and clear any inherited LLM keys so the
+        // Director always uses its deterministic offline composer here.
+        WELD_ENV_FILE: `${process.cwd().replace(/\\/g, '/')}/e2e/.tmp/no-such.env`,
+        LLM_API_KEY: '',
+        FIREWORKS_API_KEY: '',
+        GEMINI_API_KEY: '',
+        OPENROUTER_API_KEY: '',
       },
     },
     {

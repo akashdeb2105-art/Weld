@@ -38,6 +38,11 @@ export function StudioShell({
 }) {
   const [snap, setSnap] = useState<GameStateSnapshot | null>(null);
   const onState = useCallback((s: GameStateSnapshot) => setSnap(s), []);
+  const [runtimeErrors, setRuntimeErrors] = useState<string[]>([]);
+  const onRuntimeError = useCallback(
+    (msg: string) => setRuntimeErrors((prev) => [...prev, msg]),
+    [],
+  );
 
   const bible = project.game_bible as Record<string, any> | null;
 
@@ -76,6 +81,7 @@ export function StudioShell({
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <RuntimeErrorsChip count={runtimeErrors.length} errors={runtimeErrors} booted={snap !== null} />
           <PublishButton slug={project.slug} published={project.published} />
           <StatePill state={snap ? (snap.status === 'win' ? 'verified' : 'running') : 'neutral'}
             label={snap ? `game ${snap.status}` : 'idle'} />
@@ -133,6 +139,7 @@ export function StudioShell({
               src={`/games/${project.slug}`}
               title={`${project.title} — playable preview`}
               onState={onState}
+              onError={onRuntimeError}
             />
             <p className="mt-3 text-center font-mono text-[11px] uppercase tracking-widest text-dim">
               WASD / arrows move · E collect · Esc pause · R restart
@@ -161,5 +168,35 @@ export function StudioShell({
         </p>
       </footer>
     </div>
+  );
+}
+
+/** Honest runtime-error status for the running game (blueprint "never fake
+ * it"; release gate "no critical console errors"). It reports only what the
+ * game frame actually produced in this session: a live error count when any
+ * fire, or a scoped "no errors this session" once the game has booted clean.
+ * Before boot it stays neutral and claims nothing. */
+function RuntimeErrorsChip({
+  count,
+  errors,
+  booted,
+}: {
+  count: number;
+  errors: string[];
+  booted: boolean;
+}) {
+  const state: 'neutral' | 'verified' | 'failed' =
+    count > 0 ? 'failed' : booted ? 'verified' : 'neutral';
+  const label =
+    count > 0
+      ? `${count} runtime error${count === 1 ? '' : 's'}`
+      : booted
+        ? 'no errors this session'
+        : 'console watch';
+  const latest = errors[errors.length - 1];
+  return (
+    <span title={latest} aria-label={`Runtime errors: ${label}`}>
+      <StatePill state={state} label={label} />
+    </span>
   );
 }

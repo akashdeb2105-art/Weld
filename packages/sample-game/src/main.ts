@@ -1,8 +1,39 @@
 import Phaser from 'phaser';
 import { parseGameBible, sampleBible, type GameBible } from '@weld/gamebible';
 import { createGame } from '@weld/engine';
-import { installWeldBridge, type WeldBridge } from './bridge';
+import { installWeldBridge, recordConsoleError, type WeldBridge } from './bridge';
 import { GameScene } from './scenes/GameScene';
+
+/**
+ * Runtime error watcher — makes the bible's `quality_requirements.
+ * zero_console_errors` promise *real* instead of declared-but-unproven
+ * (blueprint "never fake it"; release gate "no critical console errors").
+ * Installed before boot so even pre-bridge failures are caught. Each error is
+ * recorded on the bridge AND relayed to the embedding Studio via postMessage
+ * (the iframe is sandboxed/opaque-origin, so this is the only channel).
+ */
+function installErrorWatcher(): void {
+  const relay = (msg: string) => {
+    recordConsoleError(msg);
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'weld:console-error', message: msg }, '*');
+    }
+  };
+  window.addEventListener('error', (e) => {
+    relay(e.message || (e.error instanceof Error ? e.error.message : 'unknown error'));
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    const r = (e as PromiseRejectionEvent).reason;
+    relay(r instanceof Error ? r.message : String(r));
+  });
+  const origError = console.error.bind(console);
+  console.error = (...args: unknown[]) => {
+    relay(args.map(String).join(' '));
+    origError(...args);
+  };
+}
+
+installErrorWatcher();
 
 /**
  * Boot the runtime from a GameBible.

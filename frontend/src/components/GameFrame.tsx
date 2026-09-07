@@ -13,10 +13,15 @@ export function GameFrame({
   src,
   title,
   onState,
+  onError,
 }: {
   src: string;
   title: string;
   onState?: (snapshot: GameStateSnapshot) => void;
+  /** Fired for each runtime error the game frame reports (the bible's
+   * zero_console_errors promise made real). Honest: only errors the running
+   * game actually produced. */
+  onError?: (message: string) => void;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [loaded, setLoaded] = useState(false);
@@ -26,11 +31,13 @@ export function GameFrame({
     function onMessage(e: MessageEvent) {
       if (e.data?.type === 'weld:game-state' && onState) {
         onState(e.data.payload as GameStateSnapshot);
+      } else if (e.data?.type === 'weld:console-error' && onError) {
+        onError(String(e.data.message ?? 'unknown error'));
       }
     }
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [onState]);
+  }, [onState, onError]);
 
   return (
     <div

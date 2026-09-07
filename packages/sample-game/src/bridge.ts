@@ -16,6 +16,10 @@ export interface WeldBridge {
   getGameStatus: () => GameState['status'];
   getPlayerState: () => { x: number; y: number; alive: boolean };
   getObjectives: () => ReturnType<typeof snapshotState>['objectives'];
+  /** Runtime errors captured in the game frame (read-only). Proves the bible's
+   * `quality_requirements.zero_console_errors` with real evidence instead of a
+   * declared-but-never-checked promise. */
+  getConsoleErrors: () => string[];
   version: string;
 }
 
@@ -23,6 +27,14 @@ declare global {
   interface Window {
     __WELD__?: WeldBridge;
   }
+}
+
+/** Runtime errors captured this session (this game-frame load). Read-only. */
+const consoleErrors: string[] = [];
+
+/** Record a runtime error from the watcher installed in main.ts. */
+export function recordConsoleError(message: string): void {
+  consoleErrors.push(message);
 }
 
 export function installWeldBridge(getState: () => { state: GameState; rules: Rules }): WeldBridge {
@@ -43,6 +55,7 @@ export function installWeldBridge(getState: () => { state: GameState; rules: Rul
       const { state, rules } = getState();
       return snapshotState(state, rules).objectives;
     },
+    getConsoleErrors: () => [...consoleErrors],
   };
   window.__WELD__ = bridge;
   return bridge;

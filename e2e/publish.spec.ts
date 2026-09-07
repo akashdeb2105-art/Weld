@@ -24,9 +24,16 @@ test.describe('WELD M5/M6 publish -> gallery -> remix', () => {
     await expect(page.getByText('SCRAP SPRINT').first()).toBeVisible({ timeout: 30_000 });
 
     // Before publishing, the sample must NOT appear on the public gallery.
-    await page.goto('/gallery');
-    await expect(page.getByRole('heading', { name: /The gallery/i })).toBeVisible();
-    await expect(page.getByText(/No published games yet/i)).toBeVisible();
+    // Reload (bypass the client Router Cache) and retry briefly: the gallery
+    // re-fetches with a short revalidate window, and a stale cached payload
+    // from a prior navigation could otherwise linger a moment.
+    await expect(async () => {
+      await page.goto('/gallery');
+      await page.reload();
+      await expect(page.getByRole('heading', { name: /The gallery/i })).toBeVisible();
+      await expect(page.getByText(/No published games yet/i)).toBeVisible();
+      await expect(page.getByRole('link', { name: /Scrap Sprint/ })).toHaveCount(0);
+    }).toPass({ timeout: 15_000, intervals: [1000, 2000, 3000] });
 
     // Publish from the Studio. The button runs the real Playtester and only
     // flips to a live link when EVERY gate passes (never ships a broken game).

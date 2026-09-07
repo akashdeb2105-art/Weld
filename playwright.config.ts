@@ -21,6 +21,10 @@ export default defineConfig({
     baseURL: `http://localhost:${WEB_PORT}`,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    // Everything here is loopback (localhost). Bypass any OS-level proxy —
+    // Chromium's proxy auto-detect can otherwise route localhost through a
+    // dead proxy on some machines and the large game bundle fails to load.
+    launchOptions: { args: ['--no-proxy-server'] },
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: [

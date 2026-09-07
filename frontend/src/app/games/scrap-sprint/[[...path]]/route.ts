@@ -50,11 +50,36 @@ export async function GET(
     }
   }
 
+  // The game HTML references its bundle with a RELATIVE path (./assets/...),
+  // which breaks when the route is reached without a trailing slash. Inject a
+  // <base href> so relative URLs always resolve under /games/scrap-sprint/
+  // regardless of how the URL was typed. (A redirect doesn't work here — Next
+  // normalizes the trailing slash away, which caused an infinite 308 loop.)
+  if (extname(filePath) === '.html') {
+    const html = (await readFile(filePath, 'utf8')).replace(
+      '<head>',
+      '<head><base href="/games/scrap-sprint/" />',
+    );
+    return new NextResponse(html, {
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'Access-Control-Allow-Origin': '*',
+        'Cross-Origin-Resource-Policy': 'cross-origin',
+      },
+    });
+  }
+
   const body = await readFile(filePath);
+  // The game is embedded in a cross-document iframe whose module scripts load
+  // from an opaque origin ("null"), so the browser applies CORS. Allow it, or
+  // the game bundle is blocked and the canvas never mounts.
   return new NextResponse(new Uint8Array(body), {
     headers: {
       'Content-Type': MIME[extname(filePath)] ?? 'application/octet-stream',
       'Cache-Control': 'no-store',
+      'Access-Control-Allow-Origin': '*',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
     },
   });
 }

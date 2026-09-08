@@ -1,0 +1,34 @@
+name: keep-backend-warm
+
+# Render's free web service sleeps after ~15 min idle; the first request after
+# that takes ~50s, which is longer than Netlify's SSR function timeout, so
+# API-backed pages fail for the first visitor. Ping /health every 10 min to
+# keep the service awake.
+#
+# This repo is public, so Actions minutes are free. /health does not touch the
+# database, so Neon still scales to zero when there's no real traffic.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend /health
+        run: |
+          url="https://weld-api-vc00.onrender.com/health"
+          for i in 1 2 3 4 5; do
+            code=$(curl -sS -m 70 -o /dev/null -w '%{http_code}' "$url" || true)
+            echo "attempt $i -> HTTP $code"
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 15
+          done
+          echo "backend did not return 200 after 5 attempts"
+          exit 1

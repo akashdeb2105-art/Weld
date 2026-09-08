@@ -33,6 +33,9 @@ export default defineConfig({
       port: API_PORT,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
+      // Send SIGTERM (not an instant SIGKILL) so serve.mjs can drain uvicorn
+      // and exit 0 — otherwise npm reports the abrupt kill as a failure.
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
       env: {
         DATABASE_URL: `sqlite+pysqlite:///${process.cwd().replace(/\\/g, '/')}/e2e/.tmp/weld-e2e.db`,
         ENVIRONMENT: 'test',
@@ -53,6 +56,7 @@ export default defineConfig({
       cwd: 'frontend',
       port: WEB_PORT,
       reuseExistingServer: !process.env.CI,
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
       // Generous: this step runs a full cold `next build` before `next start`,
       // which on a fresh CI runner (no .next cache) can exceed 5 minutes.
       timeout: 600_000,

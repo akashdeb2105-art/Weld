@@ -10,12 +10,16 @@
   # Root build: @weld/gamebible -> @weld/sample-game -> @weld/web. The web
   # prebuild copies the freshly built sample game into public/ before next build.
   command = "npm run build"
+  # Monorepo: the build runs from the repo root (so the @weld/* workspaces build
+  # first), but the Next app and its output live in frontend/. Point the Next
+  # runtime at that output explicitly — otherwise Netlify's UI defaults publish
+  # to the repo root and @netlify/plugin-nextjs rejects it.
+  publish = "frontend/.next"
 
 [build.environment]
   NODE_VERSION = "20"
   NEXT_TELEMETRY_DISABLED = "1"
 
-# Official Next.js runtime. It manages the publish directory and the SSR/ISR
-# functions, so no [build] publish key and no redirects are set by hand.
+# Official Next.js runtime — turns the build output into SSR/ISR functions.
 [[plugins]]
   package = "@netlify/plugin-nextjs"

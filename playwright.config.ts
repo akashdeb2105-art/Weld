@@ -33,6 +33,9 @@ export default defineConfig({
       port: API_PORT,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
+      // Send SIGTERM (not an instant SIGKILL) so serve.mjs can drain uvicorn
+      // and exit 0 — otherwise npm reports the abrupt kill as a failure.
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
       env: {
         DATABASE_URL: `sqlite+pysqlite:///${process.cwd().replace(/\\/g, '/')}/e2e/.tmp/weld-e2e.db`,
         ENVIRONMENT: 'test',
@@ -49,10 +52,13 @@ export default defineConfig({
       },
     },
     {
-      command: `npm run build && npm run start -- -p ${WEB_PORT}`,
-      cwd: 'frontend',
+      // Build the sample game first — its dist/ is no longer committed, and the
+      // web prebuild only *copies* it into public/. Run from the repo root so
+      // the workspace flags resolve regardless of where playwright is invoked.
+      command: `npm run build -w @weld/sample-game && npm run build -w @weld/web && npm run start -w @weld/web -- -p ${WEB_PORT}`,
       port: WEB_PORT,
       reuseExistingServer: !process.env.CI,
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
       // Generous: this step runs a full cold `next build` before `next start`,
       // which on a fresh CI runner (no .next cache) can exceed 5 minutes.
       timeout: 600_000,

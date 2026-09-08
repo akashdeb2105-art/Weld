@@ -4,7 +4,7 @@ import { Playhead } from '@/components/Playhead';
 import { LandingDemo } from '@/components/landing/LandingDemo';
 import { LoopScenes } from '@/components/landing/LoopScenes';
 import { QualityGates } from '@/components/landing/QualityGates';
-import { HeroBeat, HeroCinematic } from '@/components/motion/HeroCinematic';
+import { HeroCinematic } from '@/components/motion/HeroCinematic';
 import { Reveal } from '@/components/motion/Reveal';
 
 export const dynamic = 'force-dynamic';

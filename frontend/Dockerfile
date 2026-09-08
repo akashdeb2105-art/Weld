@@ -5,19 +5,25 @@ WORKDIR /repo
 # Copy workspace manifests first for layer caching.
 COPY package.json package-lock.json* tsconfig.base.json ./
 COPY packages/gamebible/package.json packages/gamebible/package.json
+COPY packages/engine/package.json packages/engine/package.json
 COPY packages/sample-game/package.json packages/sample-game/package.json
 COPY frontend/package.json frontend/package.json
 
 RUN npm install --no-audit --no-fund
 
-# Source.
+# Source. sample-game imports @weld/engine, so the engine sources must be present.
 COPY tsconfig.base.json ./
 COPY packages/gamebible packages/gamebible
+COPY packages/engine packages/engine
 COPY packages/sample-game packages/sample-game
 COPY frontend frontend
 
 ARG WELD_API_URL=http://api:8000
 ENV WELD_API_URL=$WELD_API_URL
+
+# Emit the self-contained server this image's runtime stage copies from
+# .next/standalone (next.config.ts only sets output:'standalone' under this flag).
+ENV DOCKER_BUILD=true
 
 # Build sample game, then the web app (prebuild copies the game into public/).
 RUN npm run build -w @weld/sample-game && npm run build -w @weld/web

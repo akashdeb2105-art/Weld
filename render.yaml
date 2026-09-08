@@ -1,0 +1,43 @@
+# WELD backend — Render (FastAPI + uvicorn), free web service.
+#
+# Secrets and environment-specific values (sync: false) are set in the Render
+# dashboard, never committed:
+#   DATABASE_URL   Neon connection string, psycopg driver, sslmode=require:
+#                  postgresql+psycopg://USER:PASS@ep-xxx.us-east-2.aws.neon.tech/weld?sslmode=require
+#   CORS_ORIGINS   the Netlify origin(s), comma-separated
+#   FIREWORKS_API_KEY / GEMINI_API_KEY / OPENROUTER_API_KEY  optional; with none
+#                  set, the Director runs its honest deterministic offline mode.
+
+services:
+  - type: web
+    name: weld-api
+    runtime: python
+    plan: free
+    region: ohio
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # Free tier has no pre-deploy hook, so migrations run here. `alembic upgrade
+    # head` is idempotent (tracked in alembic_version); on a paid plan move it
+    # to preDeployCommand and leave startCommand as uvicorn only.
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.10"
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: DIRECTOR_TIMEOUT_SECONDS
+        value: "25"
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: FIREWORKS_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false

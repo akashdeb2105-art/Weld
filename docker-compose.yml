@@ -37,7 +37,7 @@ services:
         WELD_API_URL: http://api:8000
     environment:
       WELD_API_URL: http://api:8000
-      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      WELD_SITE_URL: http://localhost:3000
     ports:
       - '3000:3000'
     depends_on:

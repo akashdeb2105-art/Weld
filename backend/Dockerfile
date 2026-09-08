@@ -6,16 +6,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /srv
 
-# Install API deps (no dev extras in the image).
-COPY backend/pyproject.toml ./backend/pyproject.toml
-RUN pip install --no-cache-dir \
-    "fastapi>=0.115" \
-    "uvicorn[standard]>=0.34" \
-    "pydantic>=2.10" \
-    "pydantic-settings>=2.7" \
-    "sqlalchemy>=2.0" \
-    "alembic>=1.14" \
-    "psycopg[binary]>=3.2"
+# Install API runtime deps from the single source of truth (was a hand-copied
+# list here that drifted — it missed httpx and crashed the API on startup).
+COPY backend/requirements.txt ./backend/requirements.txt
+RUN pip install --no-cache-dir -r ./backend/requirements.txt
 
 # App source + migrations + the shared GameBible fixture the seed reads.
 COPY backend ./backend

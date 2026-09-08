@@ -9,6 +9,9 @@ build/
 out/
 frontend/.next/
 frontend/out/
+# Regenerated on every build by frontend/scripts/copy-sample-game.mjs — a
+# committed copy just goes stale (and once masked a broken copy path).
+frontend/public/sample-game/
 
 # Test artifacts
 coverage/

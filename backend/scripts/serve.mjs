@@ -57,4 +57,35 @@ if (existsSync(venvPython)) {
 if (reload) args.push('--reload');
 
 const child = spawn(cmd, args, { cwd: backendDir, stdio: 'inherit' });
-child.on('exit', (code) => process.exit(code ?? 0));
+
+// Clean teardown. Playwright (and Ctrl+C) send SIGTERM/SIGINT to stop the e2e
+// web servers; without this the signal killed *this* wrapper but orphaned
+// uvicorn, and npm reported the abrupt death as `code 4294967295` — noise that
+// looked exactly like a flaky failure. Now we forward the signal, wait for the
+// child to drain, and exit 0 for a shutdown we initiated.
+let shuttingDown = false;
+for (const signal of ['SIGTERM', 'SIGINT', 'SIGBREAK', 'SIGHUP']) {
+  process.on(signal, () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill(signal === 'SIGBREAK' || signal === 'SIGHUP' ? 'SIGTERM' : signal);
+    }
+    // Belt and braces: if uvicorn ignores the signal, force it down.
+    setTimeout(() => child.kill('SIGKILL'), 5_000).unref();
+  });
+}
+
+child.on('exit', (code, signal) => {
+  if (shuttingDown) process.exit(0);
+  if (signal) {
+    console.error(`[serve] uvicorn terminated by ${signal}`);
+    process.exit(0);
+  }
+  process.exit(code ?? 0);
+});
+
+child.on('error', (err) => {
+  console.error('[serve] failed to launch uvicorn:', err.message);
+  process.exit(1);
+});

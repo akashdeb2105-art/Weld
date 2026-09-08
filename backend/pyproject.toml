@@ -11,12 +11,14 @@ dependencies = [
     "sqlalchemy>=2.0",
     "alembic>=1.14",
     "psycopg[binary]>=3.2",
+    # director.py imports httpx unconditionally at module load for the real
+    # LLM provider calls — it is a runtime dep, not a test-only one.
+    "httpx>=0.28",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3",
-    "httpx>=0.28",
 ]
 
 [build-system]

@@ -1,0 +1,21 @@
+# WELD frontend — Netlify (Next.js 15 App Router, SSR).
+#
+# Runtime env vars live in the Netlify UI, never here:
+#   WELD_API_URL   the Render API base, e.g. https://weld-api.onrender.com
+#   WELD_SITE_URL  this site's public base, e.g. https://weld.netlify.app
+# The browser never sees WELD_API_URL — it is read only in server components
+# and server actions.
+
+[build]
+  # Root build: @weld/gamebible -> @weld/sample-game -> @weld/web. The web
+  # prebuild copies the freshly built sample game into public/ before next build.
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+# Official Next.js runtime. It manages the publish directory and the SSR/ISR
+# functions, so no [build] publish key and no redirects are set by hand.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

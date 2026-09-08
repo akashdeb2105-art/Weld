@@ -213,37 +213,31 @@ Every subsequent deploy re-runs `alembic upgrade head` (a no-op when there's not
 
 `quality` job on every push + PR: install → lint → build gamebible → typecheck → unit (TS) → build playtester → pytest → cache → build (sample-game + web) → Playwright e2e. Green today.
 
-### 7.2 Add a gated `deploy` job
+### 7.2 The gated `deploy` job (already in `ci.yml`)
 
 ```yaml
   deploy:
     needs: quality
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      vars.WELD_API_URL != '' &&
+      vars.WELD_SITE_URL != ''
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy backend (Render)
-        run: curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
-
-      - name: Wait for backend health
-        run: |
-          for i in $(seq 1 60); do
-            curl -fsS https://weld-api.onrender.com/health && exit 0
-            sleep 10
-          done
-          echo "backend did not come healthy" && exit 1
-
-      - name: Deploy frontend (Netlify)
-        run: curl -fsSL -X POST "${{ secrets.NETLIFY_BUILD_HOOK }}"
-
-      - name: Smoke test production
-        run: |
-          curl -fsS https://weld-api.onrender.com/api/v1/projects | grep -q scrap-sprint
-          curl -fsS -o /dev/null -w '%{http_code}' https://weld.netlify.app/ | grep -q 200
+      - Deploy backend (Render)   → curl -X POST $RENDER_DEPLOY_HOOK
+      - Wait for backend health   → poll $WELD_API_URL/health for "status":"ok"
+      - Deploy frontend (Netlify) → curl -X POST $NETLIFY_BUILD_HOOK
+      - Smoke test backend        → $WELD_API_URL/api/v1/projects contains scrap-sprint
+      - Smoke test frontend       → poll $WELD_SITE_URL/ until HTTP 200
 ```
 
 - **`needs: quality`** — no deploy unless every test passed.
+- **Dormant until configured.** The `if` also requires the repo *variables* `WELD_API_URL` and `WELD_SITE_URL` to be non-empty. Until they are set (part of §9), the job is **skipped** (neutral) on every push to `main` — it does not fail. Setting the two vars + the two secrets below activates it.
 - **Backend before frontend** — migrations land first; the health-wait gate ensures the API is actually up before Netlify rebuilds against it.
-- **Repo secrets required:** `RENDER_DEPLOY_HOOK`, `NETLIFY_BUILD_HOOK`. (Add `NETLIFY_AUTH_TOKEN` + `NETLIFY_SITE_ID` instead if using the CLI form.)
+- **Repo config required to activate:**
+  - variables: `WELD_API_URL`, `WELD_SITE_URL`
+  - secrets: `RENDER_DEPLOY_HOOK`, `NETLIFY_BUILD_HOOK` (or `NETLIFY_AUTH_TOKEN` + `NETLIFY_SITE_ID` for the CLI form)
 - Render `autoDeploy: false` and Netlify auto-publish **off**, so this job is the sole route to prod.
 - PR deploy previews (Netlify) stay enabled for review; they never publish to the production URL.
 

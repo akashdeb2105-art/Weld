@@ -94,19 +94,25 @@ jobs:
         timeout-minutes: 15
         run: npm run e2e
 
-  # Production deploy. Runs only on a push to main and only after `quality` is
-  # green — CI is the sole path to prod (Render autoDeploy and Netlify
-  # auto-publish are both off). Backend first so migrations land before the
-  # frontend rebuilds against the API.
+  # Production deploy. Runs only on a push to main, only after `quality` is
+  # green, and only once the deploy targets are configured — CI is the sole
+  # path to prod (Render autoDeploy and Netlify auto-publish are both off).
+  # Backend first so migrations land before the frontend rebuilds against it.
   #
-  # Required repo config:
-  #   secrets.RENDER_DEPLOY_HOOK   Render service "Deploy Hook" URL
-  #   secrets.NETLIFY_BUILD_HOOK   Netlify "Build hook" URL
+  # Dormant until BOTH repo variables below are set: with them empty the job is
+  # skipped (neutral), not failed. Setting them is part of standing up the
+  # hosts — see docs/deployment.md.
   #   vars.WELD_API_URL            e.g. https://weld-api.onrender.com
   #   vars.WELD_SITE_URL           e.g. https://weld.netlify.app
+  #   secrets.RENDER_DEPLOY_HOOK   Render service "Deploy Hook" URL
+  #   secrets.NETLIFY_BUILD_HOOK   Netlify "Build hook" URL
   deploy:
     needs: quality
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      vars.WELD_API_URL != '' &&
+      vars.WELD_SITE_URL != ''
     runs-on: ubuntu-latest
     steps:
       - name: Deploy backend (Render)

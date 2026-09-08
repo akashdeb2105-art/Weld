@@ -52,8 +52,10 @@ export default defineConfig({
       },
     },
     {
-      command: `npm run build && npm run start -- -p ${WEB_PORT}`,
-      cwd: 'frontend',
+      // Build the sample game first — its dist/ is no longer committed, and the
+      // web prebuild only *copies* it into public/. Run from the repo root so
+      // the workspace flags resolve regardless of where playwright is invoked.
+      command: `npm run build -w @weld/sample-game && npm run build -w @weld/web && npm run start -w @weld/web -- -p ${WEB_PORT}`,
       port: WEB_PORT,
       reuseExistingServer: !process.env.CI,
       gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },

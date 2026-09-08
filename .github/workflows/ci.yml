@@ -93,3 +93,48 @@ jobs:
         # Fail fast rather than hang forever if a server refuses to boot.
         timeout-minutes: 15
         run: npm run e2e
+
+  # Production deploy. Runs only on a push to main and only after `quality` is
+  # green — CI is the sole path to prod (Render autoDeploy and Netlify
+  # auto-publish are both off). Backend first so migrations land before the
+  # frontend rebuilds against the API.
+  #
+  # Required repo config:
+  #   secrets.RENDER_DEPLOY_HOOK   Render service "Deploy Hook" URL
+  #   secrets.NETLIFY_BUILD_HOOK   Netlify "Build hook" URL
+  #   vars.WELD_API_URL            e.g. https://weld-api.onrender.com
+  #   vars.WELD_SITE_URL           e.g. https://weld.netlify.app
+  deploy:
+    needs: quality
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy backend (Render)
+        run: curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+
+      - name: Wait for backend health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS "${{ vars.WELD_API_URL }}/health" | grep -q '"status":"ok"'; then
+              echo "backend healthy"; exit 0
+            fi
+            echo "waiting for backend ($i/60)..."; sleep 10
+          done
+          echo "backend did not report healthy in 10 minutes"; exit 1
+
+      - name: Deploy frontend (Netlify)
+        run: curl -fsSL -X POST "${{ secrets.NETLIFY_BUILD_HOOK }}"
+
+      - name: Smoke test backend
+        run: curl -fsS "${{ vars.WELD_API_URL }}/api/v1/projects" | grep -q scrap-sprint
+
+      - name: Smoke test frontend
+        # The Netlify build runs a few minutes after the hook fires; poll until
+        # the site answers 200 (it can briefly 5xx during the deploy swap).
+        run: |
+          for i in $(seq 1 40); do
+            code=$(curl -fsS -o /dev/null -w '%{http_code}' "${{ vars.WELD_SITE_URL }}/" || true)
+            if [ "$code" = "200" ]; then echo "frontend up"; exit 0; fi
+            echo "waiting for frontend ($i/40, last=$code)..."; sleep 15
+          done
+          echo "frontend did not return 200 within 10 minutes"; exit 1

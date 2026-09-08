@@ -1,10 +1,4 @@
 # Dev/test deps for the WELD API (used by CI and local e2e).
-fastapi>=0.115
-uvicorn[standard]>=0.34
-pydantic>=2.10
-pydantic-settings>=2.7
-sqlalchemy>=2.0
-alembic>=1.14
-psycopg[binary]>=3.2
+# Runtime deps live in requirements.txt — keep this file test-only.
+-r requirements.txt
 pytest>=8.3
-httpx>=0.28

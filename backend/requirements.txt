@@ -1,0 +1,11 @@
+# Runtime deps for the WELD API — the single source of truth the Docker image
+# and any host (Render, etc.) install from. Mirrors [project.dependencies] in
+# pyproject.toml. requirements-dev.txt pulls this in and adds test-only deps.
+fastapi>=0.115
+uvicorn[standard]>=0.34
+pydantic>=2.10
+pydantic-settings>=2.7
+sqlalchemy>=2.0
+alembic>=1.14
+psycopg[binary]>=3.2
+httpx>=0.28
